@@ -1,3 +1,4 @@
+using lht52;
 using lht52.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +10,19 @@ builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnC
 builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Sqlite")));
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(builder =>
+    {
+        builder.AllowAnyHeader()
+               .AllowAnyMethod()
+               .AllowCredentials()
+               .SetIsOriginAllowed(_ => true);
+    });
+});
+
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -29,5 +43,8 @@ app.UseRouting();
 
 app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapControllers();
+
+app.UseCors();
+app.MapHub<TelemetryHub>("/telemetryHub");
 
 app.Run();

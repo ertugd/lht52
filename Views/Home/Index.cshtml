@@ -7,20 +7,31 @@
     <meta charset="utf-8" />
     <title>Temperature & Humidity - Last 7 Days</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+
 </head>
 <body>
     <h1>Last 7 Days Temperature & Humidity</h1>
     <canvas id="chart" width="1000" height="350"></canvas>
     <script>
+        let chart;
+
         async function load() {
             const res = await fetch('/api/telemetry/last7days');
             const data = await res.json();
+
             const labels = data.map(d => new Date(d.time).toLocaleString());
             const temps = data.map(d => d.temperature);
             const hums = data.map(d => d.humidity);
 
             const ctx = document.getElementById('chart').getContext('2d');
-            new Chart(ctx, {
+
+            // Eğer chart zaten varsa destroy et
+            if (chart) {
+                chart.destroy();
+            }
+
+            chart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels,
@@ -32,7 +43,24 @@
                 options: { responsive: true, interaction: { mode: 'index', intersect: false } }
             });
         }
-        load();
+
+        // SignalR bağlantısı
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/telemetryHub")
+            .build();
+
+        connection.on("TelemetryUpdated", () => {
+            console.log("Yeni veri geldi — grafik güncelleniyor...");
+            load();
+        });
+
+        connection.start()
+            .then(() => {
+                console.log("SignalR bağlantısı kuruldu.");
+                load(); // İlk yükleme
+            })
+            .catch(err => console.error(err));
     </script>
+
 </body>
 </html>

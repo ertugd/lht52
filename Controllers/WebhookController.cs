@@ -1,6 +1,8 @@
+using lht52;
 using lht52.Data;
 using lht52.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json.Linq;
 
 namespace ChirpStackViewer.Controllers;
@@ -11,10 +13,13 @@ public class WebhookController : ControllerBase
 {
     private readonly IConfiguration _config;
     private readonly AppDbContext _db;
-    public WebhookController(IConfiguration config, AppDbContext db)
+    private readonly IHubContext<TelemetryHub> _hub;
+
+    public WebhookController(IConfiguration config, AppDbContext db, IHubContext<TelemetryHub> hub)
     {
         _config = config;
         _db = db;
+        _hub = hub;
     }
 
     private bool ValidateApiKey()
@@ -55,6 +60,9 @@ public class WebhookController : ControllerBase
             };
             _db.Telemetry.Add(entry);
             await _db.SaveChangesAsync();
+
+            await _hub.Clients.All.SendAsync("TelemetryUpdated");
+
             return Ok(new { status = "stored" });
         }
         catch (Exception ex)
