@@ -8,13 +8,55 @@
     <title>Temperature & Humidity - Last 7 Days</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background: #f9fafb;
+        }
 
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .chart-box {
+            flex: 1 1 450px;
+            min-width: 300px;
+            max-width: 600px;
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 350px !important;
+        }
+    </style>
 </head>
 <body>
     <h1>Last 7 Days Temperature & Humidity</h1>
-    <canvas id="chart" width="1000" height="350"></canvas>
+
+    <div class="chart-container">
+        <div class="chart-box">
+            <canvas id="tempChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <canvas id="humChart"></canvas>
+        </div>
+    </div>
+
     <script>
-        let chart;
+        let tempChart, humChart;
 
         async function load() {
             const res = await fetch('/api/telemetry/last7days');
@@ -24,27 +66,73 @@
             const temps = data.map(d => d.temperature);
             const hums = data.map(d => d.humidity);
 
-            const ctx = document.getElementById('chart').getContext('2d');
+            const ctxTemp = document.getElementById('tempChart').getContext('2d');
+            const ctxHum = document.getElementById('humChart').getContext('2d');
 
-            // Eğer chart zaten varsa destroy et
-            if (chart) {
-                chart.destroy();
-            }
+            // Önceki grafikleri temizle
+            if (tempChart) tempChart.destroy();
+            if (humChart) humChart.destroy();
 
-            chart = new Chart(ctx, {
+            // 🌡️ Sıcaklık Grafiği
+            tempChart = new Chart(ctxTemp, {
                 type: 'line',
                 data: {
                     labels,
-                    datasets: [
-                        { label: 'Temp (°C)', data: temps, borderWidth: 2, tension: 0.2 },
-                        { label: 'Humidity (%)', data: hums, borderWidth: 2, tension: 0.2 }
-                    ]
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: temps,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239,68,68,0.2)',
+                        borderWidth: 2,
+                        tension: 0.2,
+                        fill: true
+                    }]
                 },
-                options: { responsive: true, interaction: { mode: 'index', intersect: false } }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Temperature Over Time'
+                        }
+                    },
+                    interaction: { mode: 'index', intersect: false },
+                    scales: { y: { beginAtZero: false } }
+                }
+            });
+
+            // 💧 Nem Grafiği
+            humChart = new Chart(ctxHum, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Humidity (%)',
+                        data: hums,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59,130,246,0.2)',
+                        borderWidth: 2,
+                        tension: 0.2,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Humidity Over Time'
+                        }
+                    },
+                    interaction: { mode: 'index', intersect: false },
+                    scales: { y: { beginAtZero: true } }
+                }
             });
         }
 
-        // SignalR bağlantısı
+        // 🔄 SignalR bağlantısı
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/telemetryHub")
             .build();
