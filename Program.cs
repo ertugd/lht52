@@ -1,5 +1,9 @@
+using Auth0.AspNetCore.Authentication;
 using lht52;
 using lht52.Data;
+using lht52.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,8 +26,22 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddSignalR();
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = Auth0Constants.AuthenticationScheme;
+})
+.AddAuth0WebAppAuthentication(options =>
+{
+    options.Domain = builder.Configuration["Auth0:Domain"];
+    options.ClientId = builder.Configuration["Auth0:ClientId"];
+    options.ClientSecret = builder.Configuration["Auth0:ClientSecret"];    
+});
 
+builder.Services.AddHttpClient();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<Auth0ManagementService>();
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -38,13 +56,26 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 app.UseStaticFiles();
 app.UseRouting();
 
-app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
-app.MapControllers();
+// ✅ Auth0 middleware
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseCors();
+
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+app.MapControllers();
+
+// ✅ Protect SignalR hub later with [Authorize]
 app.MapHub<TelemetryHub>("/telemetryHub");
 
 app.Run();
