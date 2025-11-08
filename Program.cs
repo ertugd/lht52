@@ -6,10 +6,15 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Configuration    
-    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-    .AddEnvironmentVariables();
+var secretPath = "/etc/secrets/appsettings.json";
+if (File.Exists(secretPath))
+{
+    builder.Configuration.AddJsonFile(secretPath, optional: false, reloadOnChange: true);
+}
+else
+{
+    builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+}
 
 builder.Services.AddControllersWithViews();
 
