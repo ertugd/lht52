@@ -27,4 +27,6 @@ RUN dotnet publish "./istiklal-karacasu-lorawan.csproj" -c $BUILD_CONFIGURATION 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+COPY appsettings.json ./appsettings.json
+COPY firebase-service-account.json ./firebase-service-account.json
 ENTRYPOINT ["dotnet", "istiklal-karacasu-lorawan.dll"]
