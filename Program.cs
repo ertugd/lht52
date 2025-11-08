@@ -7,19 +7,9 @@ using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Render.com secret file path'i environment variable'dan al
-var secretFilePath = Environment.GetEnvironmentVariable("/app/appsettings.json");
-
-// Dosya varsa configuration'a ekle
-if (!string.IsNullOrEmpty(secretFilePath) && File.Exists(secretFilePath))
-{
-    builder.Configuration.AddJsonFile(secretFilePath, optional: false, reloadOnChange: true);
-}
-else
-{
-    Console.WriteLine("Warning: APPSETTINGS_JSON env var or file not found!");
-}
-
+builder.Configuration    
+    .AddJsonFile("/etc/secrets/appsettings.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
 
 builder.Services.AddControllersWithViews();
 
