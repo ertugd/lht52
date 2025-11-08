@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration    
-    .AddJsonFile("/etc/secrets/appsettings.json", optional: true, reloadOnChange: true)
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
     .AddEnvironmentVariables();
 
 builder.Services.AddControllersWithViews();
