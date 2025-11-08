@@ -12,8 +12,8 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["istiklal-karacasu-lorawan/istiklal-karacasu-lorawan.csproj", "istiklal-karacasu-lorawan/"]
-RUN dotnet restore "./istiklal-karacasu-lorawan/istiklal-karacasu-lorawan.csproj"
+COPY ["istiklal-karacasu-lorawan.csproj", "istiklal-karacasu-lorawan/"]
+RUN dotnet restore "./istiklal-karacasu-lorawan.csproj"
 COPY . .
 WORKDIR "/src/istiklal-karacasu-lorawan"
 RUN dotnet build "./istiklal-karacasu-lorawan.csproj" -c $BUILD_CONFIGURATION -o /app/build
