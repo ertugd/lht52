@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 var builder = WebApplication.CreateBuilder(args);
 
 // Render.com secret file path'i environment variable'dan al
-var secretFilePath = Environment.GetEnvironmentVariable("/etc/secrets/appsettings.json");
+var secretFilePath = Environment.GetEnvironmentVariable("/app/appsettings.json");
 
 // Dosya varsa configuration'a ekle
 if (!string.IsNullOrEmpty(secretFilePath) && File.Exists(secretFilePath))
