@@ -12,10 +12,10 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["istiklal-karacasu-lorawan.csproj", "istiklal-karacasu-lorawan/"]
+COPY ["istiklal-karacasu-lorawan.csproj", "."]
 RUN dotnet restore "./istiklal-karacasu-lorawan.csproj"
 COPY . .
-WORKDIR "/src/istiklal-karacasu-lorawan"
+WORKDIR "/src/."
 RUN dotnet build "./istiklal-karacasu-lorawan.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # Bu aşama, son aşamaya kopyalanacak hizmet projesini yayımlamak için kullanılır

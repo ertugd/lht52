@@ -7,6 +7,7 @@
     <RootNamespace>istiklal_karacasu_lorawan</RootNamespace>
     <UserSecretsId>a6537101-c5d6-45bb-8a15-da1b75a269dd</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>.</DockerfileContext>
   </PropertyGroup>
 
   <ItemGroup>
