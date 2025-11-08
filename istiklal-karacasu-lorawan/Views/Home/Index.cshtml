@@ -1,0 +1,146 @@
+@{
+    ViewData["Title"] = "Ölçüm Verileri ";
+    var times = ViewBag.Times as List<string>;
+    var temperatures = ViewBag.Temperatures as List<double>;
+    var humidities = ViewBag.Humidities as List<double>;
+}
+
+<div class="container mt-4">
+    <h2 class="text-center mb-4">📊 İstiklal Üniversitesi LoRaWAN LHT52 Sıcaklık ve Nem Sensörü Ölçüm Verileri</h2>
+
+    <!-- Sıcaklık -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h4 class="card-title text-center mb-3">🌡️ Sıcaklık (°C)</h4>
+            <div class="chart-container" style="position: relative; height:60vh; width:100%">
+                <canvas id="temperatureChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nem -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h4 class="card-title text-center mb-3">💧 Nem (%)</h4>
+            <div class="chart-container" style="position: relative; height:60vh; width:100%">
+                <canvas id="humidityChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js & Firebase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database-compat.js"></script>
+
+<script>
+    // 🔥 Firebase ayarları — güvenli bağlantı
+    const firebaseConfig = {
+        databaseURL: "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app/"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+   
+    const telemetryRef = db.ref("telemetry");
+
+    // MVC’den gelen geçmiş veriler
+    const labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(times));
+    const tempData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(temperatures));
+    const humData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(humidities));
+
+    // 🎨 Grafik teması
+    const tempCtx = document.getElementById("temperatureChart").getContext("2d");
+    const humCtx = document.getElementById("humidityChart").getContext("2d");
+
+    const tempChart = new Chart(tempCtx, {
+        type: "line",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "Sıcaklık (°C)",
+                data: tempData,
+                fill: true,
+                backgroundColor: "rgba(255,99,132,0.15)",
+                borderColor: "rgba(255,99,132,0.8)",
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: false } },
+            plugins: { legend: { position: "top" } }
+        }
+    });
+
+    const humChart = new Chart(humCtx, {
+        type: "line",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "Nem (%)",
+                data: humData,
+                fill: true,
+                backgroundColor: "rgba(54,162,235,0.15)",
+                borderColor: "rgba(54,162,235,0.8)",
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } },
+            plugins: { legend: { position: "top" } }
+        }
+    });
+
+    // 📡 Dinleyiciler — ekleme, güncelleme, silme olaylarını yakala
+    telemetryRef.on("child_added", snapshot => updateCharts(snapshot, "add"));
+    telemetryRef.on("child_changed", snapshot => updateCharts(snapshot, "update"));
+    telemetryRef.on("child_removed", snapshot => updateCharts(snapshot, "remove"));
+
+    function updateCharts(snapshot, type) {
+        const entry = snapshot.val();
+        if (!entry || !entry.Time) return;
+
+        const label = new Date(entry.Time).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+        if (type === "add") {
+            tempChart.data.labels.push(label);
+            tempChart.data.datasets[0].data.push(entry.Temperature || 0);
+            humChart.data.labels.push(label);
+            humChart.data.datasets[0].data.push(entry.Humidity || 0);
+        }
+        else if (type === "update") {
+            const idx = tempChart.data.labels.indexOf(label);
+            if (idx >= 0) {
+                tempChart.data.datasets[0].data[idx] = entry.Temperature || 0;
+                humChart.data.datasets[0].data[idx] = entry.Humidity || 0;
+            }
+        }
+        else if (type === "remove") {
+            const idx = tempChart.data.labels.indexOf(label);
+            if (idx >= 0) {
+                tempChart.data.labels.splice(idx, 1);
+                tempChart.data.datasets[0].data.splice(idx, 1);
+                humChart.data.labels.splice(idx, 1);
+                humChart.data.datasets[0].data.splice(idx, 1);
+            }
+        }
+
+        // Maksimum 200 veriyle sınırla
+        if (tempChart.data.labels.length > 200) {
+            tempChart.data.labels.shift();
+            tempChart.data.datasets[0].data.shift();
+        }
+        if (humChart.data.labels.length > 200) {
+            humChart.data.labels.shift();
+            humChart.data.datasets[0].data.shift();
+        }
+
+        tempChart.update();
+        humChart.update();
+    }
+</script>

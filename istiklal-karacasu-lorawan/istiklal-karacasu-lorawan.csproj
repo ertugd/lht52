@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>istiklal_karacasu_lorawan</RootNamespace>
+    <UserSecretsId>a6537101-c5d6-45bb-8a15-da1b75a269dd</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Auth0.AspNetCore.Authentication" Version="1.5.1" />
+    <PackageReference Include="FirebaseAdmin" Version="3.4.0" />
+    <PackageReference Include="FirebaseDatabase.net" Version="5.0.0" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+</Project>
