@@ -7,7 +7,7 @@ namespace istiklal_karacasu_lorawan.Services
 {
     public class Auth0ManagementService
     {
-        private readonly IHttpClientFactory _httpClientFactory;
+        /*private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _config;
 
 
@@ -93,6 +93,6 @@ namespace istiklal_karacasu_lorawan.Services
             return doc.RootElement.TryGetProperty("ticket", out var ticketProp) && ticketProp.ValueKind == JsonValueKind.String
                 ? ticketProp.GetString() ?? string.Empty
                 : string.Empty;
-        }
+        }*/
     }
 }

@@ -1,29 +1,30 @@
-# --- Build aşaması ---
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-WORKDIR /src
+# Hata ayıklama kapsayıcınızı özelleştirme ve Visual Studio’nun daha hızlı hata ayıklama için görüntülerinizi derlemek üzere bu Dockerfile'ı nasıl kullandığı hakkında bilgi edinmek için https://aka.ms/customizecontainer sayfasına bakın.
 
-# Proje dosyasını kopyala ve bağımlılıkları indir
+# Bu aşama, VS'den hızlı modda çalıştırıldığında kullanılır (Hata ayıklama yapılandırması için varsayılan olarak ayarlıdır)
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
+USER $APP_UID
+WORKDIR /app
+EXPOSE 8080
+EXPOSE 8081
+
+
+# Bu aşama, hizmet projesini oluşturmak için kullanılır
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
 COPY ["istiklal-karacasu-lorawan.csproj", "."]
 RUN dotnet restore "./istiklal-karacasu-lorawan.csproj"
-
-# Geri kalan dosyaları kopyala ve build et
 COPY . .
-RUN dotnet publish "./istiklal-karacasu-lorawan.csproj" -c Release -o /app/publish /p:UseAppHost=false
+WORKDIR "/src/."
+RUN dotnet build "./istiklal-karacasu-lorawan.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-# --- Çalışma aşaması ---
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+# Bu aşama, son aşamaya kopyalanacak hizmet projesini yayımlamak için kullanılır
+FROM build AS publish
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish "./istiklal-karacasu-lorawan.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+# Bu aşama üretimde veya VS'den normal modda çalıştırıldığında kullanılır (Hata Ayıklama yapılandırması kullanılmazken varsayılan olarak ayarlıdır)
+FROM base AS final
 WORKDIR /app
-
-# Yayınlanan dosyaları kopyala
-COPY --from=build /app/publish .
-
-# Render'ın port yönetimi için
-ENV ASPNETCORE_URLS=http://+:8080
-
-# ✅ Render secret file mount noktası (appsettings.json burada olacak)
-# Dosya zaten Render tarafından /etc/secrets/appsettings.json konumuna eklenecek
-# Bu yüzden elle kopyalamaya gerek yok!
-
-EXPOSE 8080
-
+COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "istiklal-karacasu-lorawan.dll"]

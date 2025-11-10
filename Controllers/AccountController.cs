@@ -7,7 +7,7 @@ namespace istiklal_karacasu_lorawan.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly IConfiguration _configuration;
+        /*private readonly IConfiguration _configuration;
 
         public AccountController(IConfiguration configuration)
         {
@@ -48,6 +48,6 @@ namespace istiklal_karacasu_lorawan.Controllers
         public IActionResult LoggedOut()
         {
             return View("LogoutPage");
-        }      
+        }  */    
     }
 }

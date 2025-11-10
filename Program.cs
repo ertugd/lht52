@@ -30,7 +30,7 @@ builder.Services.AddCors(options =>
 });
 
 // --- Auth0 ---
-builder.Services.AddAuthentication(options =>
+/*builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -41,24 +41,23 @@ builder.Services.AddAuthentication(options =>
     options.Domain = builder.Configuration["Auth0:Domain"];
     options.ClientId = builder.Configuration["Auth0:ClientId"];
     options.ClientSecret = builder.Configuration["Auth0:ClientSecret"];
-});
+});*/
 
 builder.Services.AddSingleton<FirebaseService>();
 
 builder.Services.AddHttpClient();
-builder.Services.AddSignalR();
 builder.Services.AddSingleton<Auth0ManagementService>();
 var app = builder.Build();
 
 // --- Firebase Admin ---
-var firebaseKeyPath = builder.Configuration["Firebase:ServiceAccountKeyPath"];
+/*var firebaseKeyPath = builder.Configuration["Firebase:ServiceAccountKeyPath"];
 if (!string.IsNullOrEmpty(firebaseKeyPath) && File.Exists(firebaseKeyPath))
 {
     FirebaseApp.Create(new AppOptions
     {
         Credential = GoogleCredential.FromFile(firebaseKeyPath)
     });
-}
+}*/
 
 if (!app.Environment.IsDevelopment())
 {

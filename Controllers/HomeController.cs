@@ -1,11 +1,11 @@
-using istiklal_karacasu_lorawan.Models;
+﻿using Microsoft.AspNetCore.Mvc;
 using istiklal_karacasu_lorawan.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace istiklal_karacasu_lorawan.Controllers
 {
-    [Authorize]
     public class HomeController : Controller
     {
         private readonly FirebaseService _firebaseService;
@@ -13,31 +13,41 @@ namespace istiklal_karacasu_lorawan.Controllers
         public HomeController(FirebaseService firebaseService)
         {
             _firebaseService = firebaseService;
-            //AddTestData();
         }
 
         public async Task<IActionResult> Index()
-        {          
-           return View();
+        {
+            DateTime now = DateTime.Now;
+            DateTime oneWeekAgo = now.AddDays(-7);
+
+            var entries = await _firebaseService.GetEntriesAsync(oneWeekAgo, now);
+
+            // Kullanıcıya gösterilecek okunabilir tarihler
+            ViewBag.Times = entries
+                .Select(e => e.Time.ToLocalTime().ToString("dd.MM HH:mm"))
+                .ToList();
+
+            ViewBag.Temperatures = entries
+                .Select(e => e.Temperature ?? 0)
+                .ToList();
+
+            ViewBag.Humidities = entries
+                .Select(e => e.Humidity ?? 0)
+                .ToList();
+
+            ViewBag.FirebaseUrl = _firebaseService.BaseUrl;
+
+            // Firebase listener için en son zaman (ISO string)
+            ViewBag.EntriesLastTime = entries.Any()
+                ? entries.Max(e => e.Time).ToUniversalTime().ToString("o")
+                : DateTime.UtcNow.ToString("o");
+
+            return View();
         }
 
-        // Firebase�e test verisi ekleme
-        [HttpPost]
-        public async Task<IActionResult> AddTestData()
+        public async Task<IActionResult> Privacy()
         {
-            var random = new Random();
-            var entry = new TelemetryEntry
-            {
-                Time = DateTime.UtcNow,
-                Temperature = Math.Round(20 + random.NextDouble() * 5, 2),
-                Humidity = Math.Round(40 + random.NextDouble() * 20, 2),
-                RawJson = "{}"
-            };
-
-            await _firebaseService.AddEntryAsync(entry);
-            return Ok(entry);
+            return View();
         }
     }
 }
-
-

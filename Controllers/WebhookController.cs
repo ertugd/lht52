@@ -1,4 +1,4 @@
-using istiklal_karacasu_lorawan.Models;
+﻿using istiklal_karacasu_lorawan.Models;
 using istiklal_karacasu_lorawan.Services;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json.Linq;
@@ -49,12 +49,11 @@ public class WebhookController : ControllerBase
             var obj = j["object"] as JObject;
             var entry = new TelemetryEntry
             {
-                RawJson = body,
                 Time = j.Value<DateTime?>("time") ?? DateTime.UtcNow,
                 Temperature = (double?)obj?["TempC_SHT"] ?? (double?)obj?["TempC_DS"],
                 Humidity = (double?)obj?["Hum_SHT"]
             };
-             await _db.AddEntryAsync(entry);
+            await _db.AddEntryAsync(entry);
 
             return Ok(new { status = "stored" });
         }
