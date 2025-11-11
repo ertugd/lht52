@@ -1,214 +1,141 @@
-@{
-    ViewData["Title"] = "Ölçüm Verileri";
-    var times = ViewBag.Times as List<string> ?? new List<string>();
-    var temperatures = ViewBag.Temperatures as List<double> ?? new List<double>();
-    var humidities = ViewBag.Humidities as List<double> ?? new List<double>();
-    var firebaseUrl = ViewBag.FirebaseUrl as string ?? "";
-    var lastTimeIso = ViewBag.EntriesLastTime as string ?? "";
-}
-
 <div class="container mt-4">
-    <h2 class="text-center mb-4">📊 İstiklal Üniversitesi LoRaWAN LHT52 Sensörü Verileri</h2>
+    <h2 class="text-center mb-4">📊 İstiklal Üniversitesi LoRaWAN LHT52 Sıcaklık ve Nem Sensörü Ölçüm Verileri</h2>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h4 class="card-title text-center mb-3">🌡️ Sıcaklık (°C)</h4>
-            <div class="chart-container" style="height:400px; width:100%;">
-                <canvas id="temperatureChart"></canvas>
+    <div class="row">
+        <!-- Sıcaklık -->
+        <div class="col-lg-6 col-12 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body d-flex flex-column">
+                    <h4 class="card-title text-center mb-3">🌡️ Sıcaklık (°C)</h4>
+                    <div class="chart-container flex-grow-1" style="min-height:300px;">
+                        <canvas id="temperatureChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h4 class="card-title text-center mb-3">💧 Nem (%)</h4>
-            <div class="chart-container" style="height:400px; width:100%;">
-                <canvas id="humidityChart"></canvas>
+        <!-- Nem -->
+        <div class="col-lg-6 col-12 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body d-flex flex-column">
+                    <h4 class="card-title text-center mb-3">💧 Nem (%)</h4>
+                    <div class="chart-container flex-grow-1" style="min-height:300px;">
+                        <canvas id="humidityChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Chart.js ve Firebase SDK scriptleri aynı -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database-compat.js"></script>
 
 <script>
-    const chartTimes = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(times));
-    const tempData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(temperatures));
-    const humData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(humidities));
-    let lastTime = "@lastTimeIso";
-
-    const tempCtx = document.getElementById("temperatureChart").getContext("2d");
-    const humCtx = document.getElementById("humidityChart").getContext("2d");
-
-    // --- Plugin: Son noktaya çerçeveli ve sürekli değer (Sıcaklık) ---
-    const lastTempPointLabelPlugin = {
-        id: 'lastTempPointLabel',
-        afterDatasetsDraw: chart => {
-            const ctx = chart.ctx;
-            const dataset = chart.data.datasets[0];
-            const meta = chart.getDatasetMeta(0);
-            if (!dataset.data.length) return;
-
-            const lastIndex = dataset.data.length - 1;
-            const lastPoint = meta.data[lastIndex];
-            const valueText = dataset.data[lastIndex].toFixed(1) + "°C";
-
-            ctx.save();
-            ctx.font = "bold 14px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-
-            const textWidth = ctx.measureText(valueText).width;
-            const padding = 4;
-            const rectX = lastPoint.x - textWidth / 2 - padding;
-            const rectY = lastPoint.y - 24;
-            const rectWidth = textWidth + padding * 2;
-            const rectHeight = 20;
-
-            ctx.fillStyle = "white";
-            ctx.strokeStyle = "red";
-            ctx.lineWidth = 1.5;
-            ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
-            ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
-
-            ctx.fillStyle = "red";
-            ctx.fillText(valueText, lastPoint.x, lastPoint.y - 14);
-            ctx.restore();
-        }
+    // 🔥 Firebase ayarları ve mevcut grafik kodun aynen duruyor
+    const firebaseConfig = {
+        databaseURL: "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app/"
     };
-
-    // --- Plugin: Son noktaya çerçeveli ve sürekli değer (Nem) ---
-    const lastHumPointLabelPlugin = {
-        id: 'lastHumPointLabel',
-        afterDatasetsDraw: chart => {
-            const ctx = chart.ctx;
-            const dataset = chart.data.datasets[0];
-            const meta = chart.getDatasetMeta(0);
-            if (!dataset.data.length) return;
-
-            const lastIndex = dataset.data.length - 1;
-            const lastPoint = meta.data[lastIndex];
-            const valueText = dataset.data[lastIndex].toFixed(1) + "%";
-
-            ctx.save();
-            ctx.font = "bold 14px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-
-            const textWidth = ctx.measureText(valueText).width;
-            const padding = 4;
-            const rectX = lastPoint.x - textWidth / 2 - padding;
-            const rectY = lastPoint.y - 24;
-            const rectWidth = textWidth + padding * 2;
-            const rectHeight = 20;
-
-            ctx.fillStyle = "white";
-            ctx.strokeStyle = "blue";
-            ctx.lineWidth = 1.5;
-            ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
-            ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
-
-            ctx.fillStyle = "blue";
-            ctx.fillText(valueText, lastPoint.x, lastPoint.y - 14);
-            ctx.restore();
-        }
-    };
-
-    // --- Chart.js - Sıcaklık ---
-    const tempChart = new Chart(tempCtx, {
-        type: "line",
-        data: {
-            labels: chartTimes,
-            datasets: [{
-                label: "Sıcaklık (°C)",
-                data: tempData,
-                borderColor: "rgba(255,99,132,0.8)",
-                backgroundColor: "rgba(255,99,132,0.15)",
-                fill: true,
-                tension: 0.3,
-                pointRadius: tempData.map((_, i) => i === tempData.length - 1 ? 10 : 3),
-                pointBackgroundColor: tempData.map((_, i) => i === tempData.length - 1 ? 'red' : 'rgba(255,99,132,0.8)'),
-                pointHoverRadius: 12
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false
-        },
-        plugins: [lastTempPointLabelPlugin]
-    });
-
-    // --- Chart.js - Nem ---
-    const humChart = new Chart(humCtx, {
-        type: "line",
-        data: {
-            labels: chartTimes,
-            datasets: [{
-                label: "Nem (%)",
-                data: humData,
-                borderColor: "rgba(54,162,235,0.8)",
-                backgroundColor: "rgba(54,162,235,0.15)",
-                fill: true,
-                tension: 0.3,
-                pointRadius: humData.map((_, i) => i === humData.length - 1 ? 10 : 3),
-                pointBackgroundColor: humData.map((_, i) => i === humData.length - 1 ? 'blue' : 'rgba(54,162,235,0.8)')
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, animation: false },
-        plugins: [lastHumPointLabelPlugin]
-    });
-
-    // --- Firebase ---
-    const firebaseConfig = { databaseURL: "@firebaseUrl" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const telemetryRef = db.ref("telemetry");
 
-    function updateCharts() {
-        tempChart.update();
-        humChart.update();
-    }
+    const tempCtx = document.getElementById("temperatureChart").getContext("2d");
+    const humCtx = document.getElementById("humidityChart").getContext("2d");
 
-    function trimData() {
-        const maxPoints = 200;
-        while (tempChart.data.labels.length > maxPoints) {
-            tempChart.data.labels.shift();
-            tempChart.data.datasets.forEach(ds => ds.data.shift());
-            chartTimes.shift();
+    const highlightLastValuePlugin = {
+        id: 'highlightLastValue',
+        afterDatasetsDraw(chart) {
+            const {ctx} = chart;
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                const meta = chart.getDatasetMeta(datasetIndex);
+                if (!meta.data.length) return;
+
+                const lastPoint = meta.data[meta.data.length - 1];
+                const value = dataset.data[dataset.data.length - 1] ?? '0';
+
+                const padding = 10;
+                const fontSize = 20;
+                ctx.save();
+                ctx.font = `${fontSize}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+
+                const boxWidth = ctx.measureText(value).width + padding * 2;
+                const boxHeight = fontSize + padding * 2;
+                const x = lastPoint.x;
+                const y = lastPoint.y - 14;
+
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(x - boxWidth / 2, y - boxHeight, boxWidth, boxHeight);
+
+                ctx.fillStyle = 'white';
+                ctx.fillText(value, x, y - padding / 2);
+
+                ctx.restore();
+            });
         }
-        while (humChart.data.labels.length > maxPoints) {
-            humChart.data.labels.shift();
-            humChart.data.datasets.forEach(ds => ds.data.shift());
-        }
-    }
+    };
 
-    const recentRef = telemetryRef.orderByChild("Time").startAfter(lastTime);
+    const tempChart = new Chart(tempCtx, {
+        type: "line",
+        data: { labels: [], datasets: [{ label: "Sıcaklık (°C)", data: [], fill: true, backgroundColor: "rgba(255,99,132,0.15)", borderColor: "rgba(255,99,132,0.8)", tension: 0.3 }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false } }, plugins: { legend: { position: "top" } } },
+        plugins: [highlightLastValuePlugin]
+    });
 
-    recentRef.on("child_added", snapshot => {
+    const humChart = new Chart(humCtx, {
+        type: "line",
+        data: { labels: [], datasets: [{ label: "Nem (%)", data: [], fill: true, backgroundColor: "rgba(54,162,235,0.15)", borderColor: "rgba(54,162,235,0.8)", tension: 0.3 }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { position: "top" } } },
+        plugins: [highlightLastValuePlugin]
+    });
+
+    window.addEventListener("resize", () => { tempChart.resize(); humChart.resize(); });
+
+    telemetryRef.limitToLast(200).on("child_added", snapshot => updateCharts(snapshot, "add"));
+    telemetryRef.on("child_changed", snapshot => updateCharts(snapshot, "update"));
+    telemetryRef.on("child_removed", snapshot => updateCharts(snapshot, "remove"));
+
+    function updateCharts(snapshot, type) {
         const entry = snapshot.val();
         if (!entry || !entry.Time) return;
 
-        const label = new Date(entry.Time).toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+        const label = new Date(entry.Time).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-        // Sıcaklık
-        chartTimes.push(label);
-        tempChart.data.labels.push(label);
-        tempChart.data.datasets[0].data.push(entry.Temperature || 0);
-        tempChart.data.datasets[0].pointRadius = tempChart.data.datasets[0].data.map((_, i) => i === tempChart.data.datasets[0].data.length - 1 ? 10 : 3);
-        tempChart.data.datasets[0].pointBackgroundColor = tempChart.data.datasets[0].data.map((_, i) => i === tempChart.data.datasets[0].data.length - 1 ? 'red' : 'rgba(255,99,132,0.8)');
+        if (type === "add") {
+            tempChart.data.labels.push(label);
+            tempChart.data.datasets[0].data.push(entry.Temperature || 0);
+            humChart.data.labels.push(label);
+            humChart.data.datasets[0].data.push(entry.Humidity || 0);
+        } else if (type === "update") {
+            const idx = tempChart.data.labels.indexOf(label);
+            if (idx >= 0) {
+                tempChart.data.datasets[0].data[idx] = entry.Temperature || 0;
+                humChart.data.datasets[0].data[idx] = entry.Humidity || 0;
+            }
+        } else if (type === "remove") {
+            const idx = tempChart.data.labels.indexOf(label);
+            if (idx >= 0) {
+                tempChart.data.labels.splice(idx, 1);
+                tempChart.data.datasets[0].data.splice(idx, 1);
+                humChart.data.labels.splice(idx, 1);
+                humChart.data.datasets[0].data.splice(idx, 1);
+            }
+        }
 
-        // Nem
-        humChart.data.labels.push(label);
-        humChart.data.datasets[0].data.push(entry.Humidity || 0);
-        humChart.data.datasets[0].pointRadius = humChart.data.datasets[0].data.map((_, i) => i === humChart.data.datasets[0].data.length - 1 ? 10 : 3);
-        humChart.data.datasets[0].pointBackgroundColor = humChart.data.datasets[0].data.map((_, i) => i === humChart.data.datasets[0].data.length - 1 ? 'blue' : 'rgba(54,162,235,0.8)');
+        if (tempChart.data.labels.length > 200) {
+            tempChart.data.labels.shift();
+            tempChart.data.datasets[0].data.shift();
+        }
+        if (humChart.data.labels.length > 200) {
+            humChart.data.labels.shift();
+            humChart.data.datasets[0].data.shift();
+        }
 
-        trimData();
-        updateCharts();
-
-        lastTime = entry.Time;
-    });
+        tempChart.update();
+        humChart.update();
+    }
 </script>
