@@ -1,83 +1,123 @@
-<div class="container mt-4 text-white" style="background-color:#121212;">
-    <h2 class="text-center mb-4">📊 İstiklal Üniversitesi LoRaWAN LHT52 Sıcaklık ve Nem Sensörü Ölçüm Verileri</h2>
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoRaWAN LHT52 Dashboard</title>
 
-    <div class="row mb-4">
+    <!-- Bootstrap CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #121212;
+            color: white;
+        }
+
+        .card {
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+        }
+
+        .card-title {
+            color: #ffffff;
+            font-weight: 700;
+            text-shadow: 1px 1px 4px #000000;
+        }
+
+        .chart-container {
+            min-height: 300px;
+            max-height: 400px;
+        }
+
+        .card-body h6, .card-body div {
+            color: #f8f9fa; /* Legend yazıları parlak beyaz */
+        }
+
+        .badge-primary {
+            background-color: #36a2eb;
+        }
+
+        .badge-normal {
+            background-color: #00ff00;
+            color: black;
+        }
+        /* Orta kategori yeşil */
+        .badge-danger {
+            background-color: #ff3b30;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid mt-4 text-white">
+
+        <h2 class="text-center mb-4">📊 İstiklal Üniversitesi LoRaWAN LHT52 Sıcaklık ve Nem Sensörü Ölçüm Verileri</h2>
+
         <!-- Son Değerler -->
-        <div class="col-lg-6 col-12 mb-3">
-            <div class="card shadow-lg h-100" style="background-color:#1e1e1e; color:white; border: 1px solid #333;">
-                <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                    <h4 class="card-title mb-2">🌡️ Son Sıcaklık</h4>
-                    <h2 id="lastTemperature" class="mb-1" style="text-shadow:0 0 8px #ffffff;">-- °C</h2>
-                    <span id="tempStatus" class="badge" style="font-size:1rem;">--</span>
+        <div class="row mb-4">
+            <div class="col-lg-6 col-md-6 col-12 mb-3">
+                <div class="card shadow-lg h-100 d-flex align-items-center justify-content-center">
+                    <div class="card-body text-center">
+                        <h4 class="card-title mb-2">🌡️ Son Sıcaklık</h4>
+                        <h2 id="lastTemperature" class="mb-1" style="text-shadow:0 0 8px #ffffff;">-- °C</h2>
+                        <span id="tempStatus" class="badge" style="font-size:1rem;">--</span>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <div class="col-lg-6 col-12 mb-3">
-            <div class="card shadow-lg h-100" style="background-color:#1e1e1e; color:white; border: 1px solid #333;">
-                <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                    <h4 class="card-title mb-2">💧 Son Nem</h4>
-                    <h2 id="lastHumidity" class="mb-1" style="text-shadow:0 0 8px #ffffff;">-- %</h2>
-                    <span id="humStatus" class="badge" style="font-size:1rem;">--</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <!-- Sıcaklık Grafiği -->
-        <div class="col-lg-5 col-12 mb-4">
-            <div class="card shadow-lg h-100" style="background-color:#1e1e1e; border:1px solid #333;">
-                <div class="card-body d-flex flex-column">
-                    <h4 class="card-title text-center mb-3"
-                        style="color:#f0f0f0; font-weight:700; text-shadow: 1px 1px 4px #000000;">
-                        🌡️ Sıcaklık (°C)
-                    </h4>
-                    <div class="chart-container flex-grow-1" style="min-height:300px;">
-                        <canvas id="temperatureChart"></canvas>
+            <div class="col-lg-6 col-md-6 col-12 mb-3">
+                <div class="card shadow-lg h-100 d-flex align-items-center justify-content-center">
+                    <div class="card-body text-center">
+                        <h4 class="card-title mb-2">💧 Son Nem</h4>
+                        <h2 id="lastHumidity" class="mb-1" style="text-shadow:0 0 8px #ffffff;">-- %</h2>
+                        <span id="humStatus" class="badge" style="font-size:1rem;">--</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Nem Grafiği -->
-        <div class="col-lg-5 col-12 mb-4">
-            <div class="card shadow-lg h-100" style="background-color:#1e1e1e; border:1px solid #333;">
-                <div class="card-body d-flex flex-column">
-                    <h4 class="card-title text-center mb-3"
-                        style="color:#f0f0f0; font-weight:700; text-shadow: 1px 1px 4px #000000;">
-                        💧 Nem (%)
-                    </h4>
-                    <div class="chart-container flex-grow-1" style="min-height:300px;">
-                        <canvas id="humidityChart"></canvas>
+        <!-- Grafikler ve Legend -->
+        <div class="row">
+            <div class="col-lg-5 col-md-6 col-12 mb-4">
+                <div class="card shadow-lg h-100">
+                    <div class="card-body d-flex flex-column">
+                        <h4 class="card-title text-center mb-3">🌡️ Sıcaklık (°C)</h4>
+                        <div class="chart-container flex-grow-1">
+                            <canvas id="temperatureChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Modern Legend / Açıklama -->
-        <div class="col-lg-2 col-12 mb-4">
-            <div class="card shadow-lg h-100" style="background-color:#1e1e1e; border:1px solid #333; color:white;">
-                <div class="card-body">
-                    <h5 class="card-title text-center mb-3">📌 Renk Açıklamaları</h5>
-                    <div>
+            <div class="col-lg-5 col-md-6 col-12 mb-4">
+                <div class="card shadow-lg h-100">
+                    <div class="card-body d-flex flex-column">
+                        <h4 class="card-title text-center mb-3">💧 Nem (%)</h4>
+                        <div class="chart-container flex-grow-1">
+                            <canvas id="humidityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-12 col-12 mb-4">
+                <div class="card shadow-lg h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-center mb-3">📌 Renk Açıklamaları</h5>
                         <h6 class="mt-2">🌡️ Sıcaklık</h6>
                         <div class="d-flex align-items-center mb-1">
                             <span style="display:inline-block;width:15px;height:15px;background-color:#36a2eb;border-radius:50%;margin-right:8px;"></span> Serin (&lt;18°C)
                         </div>
                         <div class="d-flex align-items-center mb-1">
-                            <span style="display:inline-block;width:15px;height:15px;background-color:#00ff00;border-radius:50%;margin-right:8px;"></span> Orta (18-24°C)
+                            <span style="display:inline-block;width:15px;height:15px;background-color:#00ff00;border-radius:50%;margin-right:8px;"></span> Normal (18-24°C)
                         </div>
                         <div class="d-flex align-items-center mb-1">
                             <span style="display:inline-block;width:15px;height:15px;background-color:#ff3b30;border-radius:50%;margin-right:8px;"></span> Sıcak (&gt;25°C)
                         </div>
-
                         <h6 class="mt-3">💧 Nem</h6>
                         <div class="d-flex align-items-center mb-1">
                             <span style="display:inline-block;width:15px;height:15px;background-color:#36a2eb;border-radius:50%;margin-right:8px;"></span> Düşük (&lt;30%)
                         </div>
                         <div class="d-flex align-items-center mb-1">
-                            <span style="display:inline-block;width:15px;height:15px;background-color:#00ff00;border-radius:50%;margin-right:8px;"></span> Orta (30-59%)
+                            <span style="display:inline-block;width:15px;height:15px;background-color:#00ff00;border-radius:50%;margin-right:8px;"></span> Normal (30-59%)
                         </div>
                         <div class="d-flex align-items-center mb-1">
                             <span style="display:inline-block;width:15px;height:15px;background-color:#ff3b30;border-radius:50%;margin-right:8px;"></span> Yüksek (&gt;60%)
@@ -87,181 +127,120 @@
             </div>
         </div>
     </div>
-</div>
 
-<!-- Scriptler -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database-compat.js"></script>
+    <!-- Scriptler -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database-compat.js"></script>
 
-<script>
-    const firebaseConfig = {
-        databaseURL: "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app/"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const telemetryRef = db.ref("telemetry");
+    <script>
+        const firebaseConfig = { databaseURL: "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app/" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const telemetryRef = db.ref("telemetry");
 
-    const tempCtx = document.getElementById("temperatureChart").getContext("2d");
-    const humCtx = document.getElementById("humidityChart").getContext("2d");
+        const tempCtx = document.getElementById("temperatureChart").getContext("2d");
+        const humCtx = document.getElementById("humidityChart").getContext("2d");
 
-    function createGradient(ctx, colorStart, colorEnd) {
-        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-        gradient.addColorStop(0, colorStart);
-        gradient.addColorStop(1, colorEnd);
-        return gradient;
-    }
-
-    // Aralıkları renklendiren plugin
-    const rangeBackgroundPlugin = {
-        id: 'rangeBackground',
-        beforeDatasetsDraw(chart) {
-            const ctx = chart.ctx;
-            const yScale = chart.scales.y;
-            const xScale = chart.scales.x;
-
-            const ranges = chart.canvas.id==="temperatureChart"
-                ? [{min:0,max:17,color:"rgba(54,162,235,0.1)"},
-                   {min:18,max:24,color:"rgba(0,255,0,0.1)"},
-                   {min:25,max:50,color:"rgba(255,59,48,0.1)"}]
-                : [{min:0,max:29,color:"rgba(54,162,235,0.1)"},
-                   {min:30,max:59,color:"rgba(0,255,0,0.1)"},
-                   {min:60,max:100,color:"rgba(255,59,48,0.1)"}];
-
-            ranges.forEach(r=>{
-                const top = yScale.getPixelForValue(r.max);
-                const bottom = yScale.getPixelForValue(r.min);
-                ctx.fillStyle = r.color;
-                ctx.fillRect(xScale.left, top, xScale.width, bottom-top);
-            });
-        }
-    };
-
-    // Sıcaklık Chart
-    const tempChart = new Chart(tempCtx, {
-        type: "line",
-        data: {
-            labels: [],
-            datasets: [{
-                label: "Sıcaklık (°C)",
-                data: [],
-                fill: true,
-                backgroundColor: createGradient(tempCtx, "rgba(255,99,132,0.3)", "rgba(255,99,132,0)"),
-                borderColor: "rgba(255,99,132,1)",
-                tension: 0.3,
-                pointRadius: 0
-            }]
-        },
-        options: {
-            responsive:true,
-            maintainAspectRatio:false,
-            scales:{
-                x:{ ticks:{ color:"white", maxRotation:0, autoSkip:true, maxTicksLimit:12 }, grid:{ color:"rgba(255,255,255,0.1)" } },
-                y:{ beginAtZero:true, max:50, ticks:{ color:"white" }, grid:{ color:"rgba(255,255,255,0.1)" } }
-            },
-            plugins:{ legend:{ display:false } }
-        },
-        plugins:[rangeBackgroundPlugin]
-    });
-
-    // Nem Chart
-    const humChart = new Chart(humCtx, {
-        type:"line",
-        data:{
-            labels:[],
-            datasets:[{
-                label:"Nem (%)",
-                data:[],
-                fill:true,
-                backgroundColor:createGradient(humCtx,"rgba(54,162,235,0.3)","rgba(54,162,235,0)"),
-                borderColor:"rgba(54,162,235,1)",
-                tension:0.3,
-                pointRadius:0
-            }]
-        },
-        options:{
-            responsive:true,
-            maintainAspectRatio:false,
-            scales:{
-                x:{ ticks:{ color:"white", maxRotation:0, autoSkip:true, maxTicksLimit:12 }, grid:{ color:"rgba(255,255,255,0.1)" } },
-                y:{ beginAtZero:true, max:100, ticks:{ color:"white" }, grid:{ color:"rgba(255,255,255,0.1)" } }
-            },
-            plugins:{ legend:{ display:false } }
-        },
-        plugins:[rangeBackgroundPlugin]
-    });
-
-    window.addEventListener("resize",()=>{ tempChart.resize(); humChart.resize(); });
-
-    function categorizeTemperature(t){
-        if(t<18) return {text:"Serin", color:"badge-primary", chartColor:"#36a2eb"};
-        if(t<25) return {text:"Orta", color:"badge-success", chartColor:"#00ff00"};
-        return {text:"Sıcak", color:"badge-danger", chartColor:"#ff3b30"};
-    }
-    function categorizeHumidity(h){
-        if(h<30) return {text:"Düşük", color:"badge-primary", chartColor:"#36a2eb"};
-        if(h<60) return {text:"Orta", color:"badge-success", chartColor:"#00ff00"};
-        return {text:"Yüksek", color:"badge-danger", chartColor:"#ff3b30"};
-    }
-
-    telemetryRef.limitToLast(200).on("child_added", snapshot=>updateCharts(snapshot,"add"));
-    telemetryRef.on("child_changed", snapshot=>updateCharts(snapshot,"update"));
-    telemetryRef.on("child_removed", snapshot=>updateCharts(snapshot,"remove"));
-
-    function updateCharts(snapshot,type){
-        const entry = snapshot.val();
-        if(!entry || !entry.Time) return;
-
-        const date = new Date(entry.Time);
-        const label = date.getHours() + ":00";
-
-        if(type==="add"){
-            tempChart.data.labels.push(label);
-            tempChart.data.datasets[0].data.push(entry.Temperature||0);
-            humChart.data.labels.push(label);
-            humChart.data.datasets[0].data.push(entry.Humidity||0);
-        }else if(type==="update"){
-            const idx = tempChart.data.labels.indexOf(label);
-            if(idx>=0){
-                tempChart.data.datasets[0].data[idx] = entry.Temperature||0;
-                humChart.data.datasets[0].data[idx] = entry.Humidity||0;
-            }
-        }else if(type==="remove"){
-            const idx = tempChart.data.labels.indexOf(label);
-            if(idx>=0){
-                tempChart.data.labels.splice(idx,1);
-                tempChart.data.datasets[0].data.splice(idx,1);
-                humChart.data.labels.splice(idx,1);
-                humChart.data.datasets[0].data.splice(idx,1);
-            }
+        function createGradient(ctx,colorStart,colorEnd){
+            const gradient=ctx.createLinearGradient(0,0,0,300);
+            gradient.addColorStop(0,colorStart);
+            gradient.addColorStop(1,colorEnd);
+            return gradient;
         }
 
-        if(tempChart.data.labels.length>200){ tempChart.data.labels.shift(); tempChart.data.datasets[0].data.shift(); }
-        if(humChart.data.labels.length>200){ humChart.data.labels.shift(); humChart.data.datasets[0].data.shift(); }
+        const rangeBackgroundPlugin = {
+            id:'rangeBackground',
+            beforeDatasetsDraw(chart){
+                const ctx=chart.ctx;
+                const yScale=chart.scales.y;
+                const xScale=chart.scales.x;
+                const ranges = chart.canvas.id==="temperatureChart"
+                    ? [{min:0,max:17,color:"rgba(54,162,235,0.1)"},{min:18,max:24,color:"rgba(0,255,0,0.1)"},{min:25,max:50,color:"rgba(255,59,48,0.1)"}]
+                    : [{min:0,max:29,color:"rgba(54,162,235,0.1)"},{min:30,max:59,color:"rgba(0,255,0,0.1)"},{min:60,max:100,color:"rgba(255,59,48,0.1)"}];
+                ranges.forEach(r=>{
+                    const top=yScale.getPixelForValue(r.max);
+                    const bottom=yScale.getPixelForValue(r.min);
+                    ctx.fillStyle=r.color;
+                    ctx.fillRect(xScale.left,top,xScale.width,bottom-top);
+                });
+            }
+        };
 
-        const lastTemp = entry.Temperature ?? 0;
-        const lastHum = entry.Humidity ?? 0;
+        const tempChart=new Chart(tempCtx,{
+            type:"line",
+            data:{ labels:[], datasets:[{label:"Sıcaklık (°C)",data:[],fill:true,backgroundColor:createGradient(tempCtx,"rgba(255,99,132,0.3)","rgba(255,99,132,0)"),borderColor:"rgba(255,99,132,1)",tension:0.3,pointRadius:0}] },
+            options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{ ticks:{color:"white",maxRotation:0,autoSkip:true,maxTicksLimit:12 }, grid:{color:"rgba(255,255,255,0.1)"} }, y:{ beginAtZero:true, max:50, ticks:{color:"white"}, grid:{color:"rgba(255,255,255,0.1)"} } }, plugins:{ legend:{ display:false } } },
+            plugins:[rangeBackgroundPlugin]
+        });
 
-        const tempCategory = categorizeTemperature(lastTemp);
-        const humCategory = categorizeHumidity(lastHum);
+        const humChart=new Chart(humCtx,{
+            type:"line",
+            data:{ labels:[], datasets:[{label:"Nem (%)",data:[],fill:true,backgroundColor:createGradient(humCtx,"rgba(54,162,235,0.3)","rgba(54,162,235,0)"),borderColor:"rgba(54,162,235,1)",tension:0.3,pointRadius:0}] },
+            options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{ ticks:{color:"white",maxRotation:0,autoSkip:true,maxTicksLimit:12 }, grid:{color:"rgba(255,255,255,0.1)"} }, y:{ beginAtZero:true, max:100, ticks:{color:"white"}, grid:{color:"rgba(255,255,255,0.1)"} } }, plugins:{ legend:{ display:false } } },
+            plugins:[rangeBackgroundPlugin]
+        });
 
-        const lastTempEl = document.getElementById("lastTemperature");
-        const tempStatusEl = document.getElementById("tempStatus");
-        lastTempEl.innerText = lastTemp.toFixed(1)+" °C";
-        lastTempEl.style.color = tempCategory.chartColor;
-        tempStatusEl.innerText = tempCategory.text;
-        tempStatusEl.className = "badge "+tempCategory.color;
-        tempChart.data.datasets[0].borderColor = tempCategory.chartColor;
+        window.addEventListener("resize",()=>{ tempChart.resize(); humChart.resize(); });
 
-        const lastHumEl = document.getElementById("lastHumidity");
-        const humStatusEl = document.getElementById("humStatus");
-        lastHumEl.innerText = lastHum.toFixed(1)+" %";
-        lastHumEl.style.color = humCategory.chartColor;
-        humStatusEl.innerText = humCategory.text;
-        humStatusEl.className = "badge "+humCategory.color;
-        humChart.data.datasets[0].borderColor = humCategory.chartColor;
+        function categorizeTemperature(t){if(t<18) return {text:"Serin", color:"badge-primary", chartColor:"#36a2eb"}; if(t<25) return {text:"Normal", color:"badge-normal", chartColor:"#00ff00"}; return {text:"Sıcak", color:"badge-danger", chartColor:"#ff3b30"}}
+        function categorizeHumidity(h){if(h<30) return {text:"Düşük", color:"badge-primary", chartColor:"#36a2eb"}; if(h<60) return {text:"Normal", color:"badge-normal", chartColor:"#00ff00"}; return {text:"Yüksek", color:"badge-danger", chartColor:"#ff3b30"}}
 
-        tempChart.update();
-        humChart.update();
-    }
-</script>
+        telemetryRef.limitToLast(200).on("child_added",snapshot=>updateCharts(snapshot,"add"));
+        telemetryRef.on("child_changed",snapshot=>updateCharts(snapshot,"update"));
+        telemetryRef.on("child_removed",snapshot=>updateCharts(snapshot,"remove"));
+
+        function updateCharts(snapshot,type){
+            const entry=snapshot.val();
+            if(!entry || !entry.Time) return;
+            const date=new Date(entry.Time);
+            const label=date.getHours()+":00";
+
+            if(type==="add"){
+                tempChart.data.labels.push(label);
+                tempChart.data.datasets[0].data.push(entry.Temperature||0);
+                humChart.data.labels.push(label);
+                humChart.data.datasets[0].data.push(entry.Humidity||0);
+            }else if(type==="update"){
+                const idx=tempChart.data.labels.indexOf(label);
+                if(idx>=0){
+                    tempChart.data.datasets[0].data[idx]=entry.Temperature||0;
+                    humChart.data.datasets[0].data[idx]=entry.Humidity||0;
+                }
+            }else if(type==="remove"){
+                const idx=tempChart.data.labels.indexOf(label);
+                if(idx>=0){
+                    tempChart.data.labels.splice(idx,1);
+                    tempChart.data.datasets[0].data.splice(idx,1);
+                    humChart.data.labels.splice(idx,1);
+                    humChart.data.datasets[0].data.splice(idx,1);
+                }
+            }
+
+            if(tempChart.data.labels.length>200){ tempChart.data.labels.shift(); tempChart.data.datasets[0].data.shift(); }
+            if(humChart.data.labels.length>200){ humChart.data.labels.shift(); humChart.data.datasets[0].data.shift(); }
+
+            const lastTemp=entry.Temperature ?? 0;
+            const lastHum=entry.Humidity ?? 0;
+            const tempCategory=categorizeTemperature(lastTemp);
+            const humCategory=categorizeHumidity(lastHum);
+
+            document.getElementById("lastTemperature").innerText=lastTemp.toFixed(1)+" °C";
+            document.getElementById("lastTemperature").style.color=tempCategory.chartColor;
+            document.getElementById("tempStatus").innerText=tempCategory.text;
+            document.getElementById("tempStatus").className="badge "+tempCategory.color;
+            tempChart.data.datasets[0].borderColor=tempCategory.chartColor;
+
+            document.getElementById("lastHumidity").innerText=lastHum.toFixed(1)+" %";
+            document.getElementById("lastHumidity").style.color=humCategory.chartColor;
+            document.getElementById("humStatus").innerText=humCategory.text;
+            document.getElementById("humStatus").className="badge "+humCategory.color;
+            humChart.data.datasets[0].borderColor=humCategory.chartColor;
+
+            tempChart.update();
+            humChart.update();
+        }
+    </script>
+
+</body>
+</html>
