@@ -39,6 +39,13 @@ public class WebhookController : ControllerBase
     {
         if (!ValidateApiKey()) return Unauthorized(new { error = "invalid api key" });
 
+        Console.WriteLine("==== ChirpStack Headers ====");
+        foreach (var header in Request.Headers)
+        {
+            Console.WriteLine($"{header.Key}: {header.Value}");
+        }
+        Console.WriteLine("============================");
+
         using var reader = new StreamReader(Request.Body);
         var body = await reader.ReadToEndAsync();
         if (string.IsNullOrWhiteSpace(body)) return BadRequest();
