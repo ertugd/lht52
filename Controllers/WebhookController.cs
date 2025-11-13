@@ -3,70 +3,80 @@ using istiklal_karacasu_lorawan.Services;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json.Linq;
 
-namespace ChirpStackViewer.Controllers;
-
-[ApiController]
-[Route("api/webhook")]
-public class WebhookController : ControllerBase
+namespace ChirpStackViewer.Controllers
 {
-    private readonly IConfiguration _config;
-    private readonly FirebaseService _db;
-
-    public WebhookController(IConfiguration config, FirebaseService db)
+    [ApiController]
+    [Route("api/webhook")]
+    public class WebhookController : ControllerBase
     {
-        _config = config;
-        _db = db;
-    }
+        private readonly IConfiguration _config;
+        private readonly FirebaseService _db;
 
-    private bool ValidateApiKey()
-    {
-        var expected = _config.GetValue<string>("X-API-KEY");
-        if (string.IsNullOrEmpty(expected)) return false;
-        if (Request.Headers.TryGetValue("X-API-KEY", out var v) && v == expected) return true;
-        if (Request.Headers.TryGetValue("Authorization", out var auth))
+        public WebhookController(IConfiguration config, FirebaseService db)
         {
-            if (auth.ToString().StartsWith("X-API-KEY ", StringComparison.OrdinalIgnoreCase))
+            _config = config;
+            _db = db;
+        }
+
+        private bool ValidateApiKey()
+        {
+            var expected = _config.GetValue<string>("X-API-KEY");
+            if (string.IsNullOrEmpty(expected)) return false;
+            if (Request.Headers.TryGetValue("X-API-KEY", out var v) && v == expected) return true;
+            if (Request.Headers.TryGetValue("Authorization", out var auth))
             {
-                var token = auth.ToString().Substring(7).Trim();
-                return token == expected;
+                if (auth.ToString().StartsWith("X-API-KEY ", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    var token = auth.ToString().Substring(9).Trim();
+                    return token == expected;
+                }
+            }
+            return false;
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Post()
+        {
+
+            if (!ValidateApiKey()) return Unauthorized(new { error = "invalid api key" });
+
+            // sadece event=up kabul et
+            var eventType = Request.Query["event"].ToString();
+            if (!string.Equals(eventType, "up", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return Ok("ignored");
+            }
+
+            Console.WriteLine("==== ChirpStack Headers ====");
+            foreach (var header in Request.Headers)
+            {
+                Console.WriteLine($"{header.Key}: {header.Value}");
+            }
+            Console.WriteLine("============================");
+
+            using var reader = new StreamReader(Request.Body);
+            var body = await reader.ReadToEndAsync();
+            if (string.IsNullOrWhiteSpace(body)) return BadRequest();
+
+            try
+            {
+                var j = JObject.Parse(body);
+                var obj = j["object"] as JObject;
+                var entry = new TelemetryEntry
+                {
+                    Time = j.Value<System.DateTime?>("time") ?? System.DateTime.UtcNow,
+                    Temperature = (double?)obj?["TempC_SHT"] ?? (double?)obj?["TempC_DS"],
+                    Humidity = (double?)obj?["Hum_SHT"]
+                };
+                await _db.AddEntryAsync(entry);
+
+                return Ok(new { status = "stored" });
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
             }
         }
-        return false;
     }
 
-    [HttpPost]
-    public async Task<IActionResult> Post()
-    {
-        if (!ValidateApiKey()) return Unauthorized(new { error = "invalid api key" });
-
-        Console.WriteLine("==== ChirpStack Headers ====");
-        foreach (var header in Request.Headers)
-        {
-            Console.WriteLine($"{header.Key}: {header.Value}");
-        }
-        Console.WriteLine("============================");
-
-        using var reader = new StreamReader(Request.Body);
-        var body = await reader.ReadToEndAsync();
-        if (string.IsNullOrWhiteSpace(body)) return BadRequest();
-
-        try
-        {
-            var j = JObject.Parse(body);
-            var obj = j["object"] as JObject;
-            var entry = new TelemetryEntry
-            {
-                Time = j.Value<DateTime?>("time") ?? DateTime.UtcNow,
-                Temperature = (double?)obj?["TempC_SHT"] ?? (double?)obj?["TempC_DS"],
-                Humidity = (double?)obj?["Hum_SHT"]
-            };
-            await _db.AddEntryAsync(entry);
-
-            return Ok(new { status = "stored" });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
-    }
 }
