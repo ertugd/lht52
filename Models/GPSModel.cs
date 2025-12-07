@@ -11,16 +11,16 @@ namespace istiklal_karacasu_lorawan.Models
         [JsonProperty("lng")]
         public double Longitude { get; set; }
 
-        [JsonProperty("hiz")]
+        [JsonProperty("speed")]
         public double Hiz { get; set; } = 0; // SenseCAP genelde hız vermez, varsayılan 0
 
-        [JsonProperty("pil")]
+        [JsonProperty("battery")]
         public int Battery { get; set; }
 
-        [JsonProperty("sonGuncelleme")]
+        [JsonProperty("last_update")]
         public string LastUpdate { get; set; }
 
-        [JsonProperty("cihazAdi")]
+        [JsonProperty("device_name")]
         public string DeviceName { get; set; }
     }
 
