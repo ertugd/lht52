@@ -1,0 +1,112 @@
+﻿@{
+    ViewData["Title"] = "Live GPS Tracking";
+}
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+<style>
+    /* Harita kapsayıcısı için yükseklik belirlemek zorunludur */
+    #map {
+        height: 600px;
+        width: 100%;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .status-panel {
+        margin-bottom: 15px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-left: 5px solid #28a745;
+    }
+</style>
+
+<div class="text-center">
+    @*<h1 class="display-4">Canlı Konum İzleme</h1>*@
+    <div class="status-panel">
+        <strong>Durum:</strong> <span id="connection-status">Bağlanıyor...</span> |
+        <strong>Aktif Cihaz:</strong> <span id="device-count">0</span>
+    </div>
+</div>
+
+<div id="map"></div>
+
+
+[Image of Leaflet map with markers]
+
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<script type="module">
+    // --- 1. Firebase Kütüphanelerini İçe Aktar ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // --- 2. Firebase Konfigürasyonu (KENDİ BİLGİLERİNLE DOLDUR) ---
+    const firebaseConfig = {      
+        databaseURL: "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app/",    
+    };
+
+    // Firebase'i Başlat
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // --- 3. Harita Kurulumu (Leaflet & OpenStreetMap) ---
+    // Başlangıç konumu (Örnek: Kahramanmaraş koordinatları, zoom seviyesi 10)
+    var map = L.map('map').setView([37.5753, 36.9228], 10);
+
+    // OpenStreetMap katmanını ekle (Tamamen ücretsiz)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    // Markerları tutacağımız obje (Eski markerları güncellemek veya silmek için)
+    var markers = {};
+
+    // --- 4. Veri Okuma ve Haritayı Güncelleme ---
+
+    // Veritabanındaki yol. Tablo adın neyse onu yaz (Örn: 'gps_data' veya 'konumlar')
+    const dbRef = ref(db, 'locations');
+
+    const statusSpan = document.getElementById("connection-status");
+    const countSpan = document.getElementById("device-count");
+
+    // onValue: Veri her değiştiğinde bu fonksiyon tetiklenir (Realtime)
+    onValue(dbRef, (snapshot) => {
+        const data = snapshot.val();
+        statusSpan.innerText = "Veri Alındı (Canlı)";
+
+        if (data) {
+            // Veri varsa döngüye gir
+            const keys = Object.keys(data);
+            countSpan.innerText = keys.length;
+
+            keys.forEach(key => {
+                const konum = data[key];
+                // konum objesinin içinde lat ve lng (veya latitude/longitude) olduğunu varsayıyoruz
+
+                if(konum.lat && konum.lng) {
+                    // Eğer bu cihaz için zaten bir marker varsa, konumunu güncelle
+                    if (markers[key]) {
+                        markers[key].setLatLng([konum.lat, konum.lng]);
+                        markers[key].bindPopup(`<b>${key}</b><br>Hız: ${konum.hiz || 0} km/s`).openPopup();
+                    }
+                    // Yoksa yeni marker oluştur
+                    else {
+                        var newMarker = L.marker([konum.lat, konum.lng]).addTo(map);
+                        newMarker.bindPopup(`<b>ID: ${key}</b><br>Konum Takibi Aktif`);
+                        markers[key] = newMarker;
+                    }
+                }
+            });
+        } else {
+            statusSpan.innerText = "Veri Yok";
+        }
+    }, (error) => {
+        console.error("Veri okuma hatası:", error);
+        statusSpan.innerText = "Hata: " + error.message;
+        statusSpan.style.color = "red";
+    });
+
+</script>

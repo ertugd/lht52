@@ -43,7 +43,7 @@ namespace istiklal_karacasu_lorawan.Services
         }
 
         /// Firebase'e yeni bir TelemetryEntry nesnesi ekler.
-        public async Task AddEntryAsync(TelemetryEntry entry)
+        public async Task AddEntryTelemetryAsync(TelemetryEntry entry)
         {
             if (entry == null)
                 throw new ArgumentNullException(nameof(entry));  
@@ -51,6 +51,14 @@ namespace istiklal_karacasu_lorawan.Services
             await _client
                 .Child("telemetry")
                 .PostAsync(entry);
+        }
+
+        public async Task AddEntryGPSAsync(GPSModel entry,string id)
+        {                  
+                await _client
+                    .Child("locations")                // Ana Tablo
+                    .Child(id)    // Cihaz ID (Benzersiz Key)
+                    .PutAsync(entry);                  // GpsModel'i gönder                         
         }
     }
 }

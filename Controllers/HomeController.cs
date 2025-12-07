@@ -18,7 +18,7 @@ namespace istiklal_karacasu_lorawan.Controllers
            return View();   
         }
 
-        public async Task<IActionResult> Privacy()
+        public async Task<IActionResult> GPS()
         {
             return View();
         }

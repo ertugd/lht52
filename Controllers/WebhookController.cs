@@ -68,7 +68,7 @@ namespace ChirpStackViewer.Controllers
                     Temperature = (double?)obj?["TempC_SHT"] ?? (double?)obj?["TempC_DS"],
                     Humidity = (double?)obj?["Hum_SHT"]
                 };
-                await _db.AddEntryAsync(entry);
+                await _db.AddEntryTelemetryAsync(entry);
 
                 return Ok(new { status = "stored" });
             }

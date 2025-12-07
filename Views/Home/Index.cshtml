@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html lang="tr">
+@{
+    ViewData["Title"] = "Temperature and Humidity";
+}
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -71,9 +73,8 @@
 
     <div class="container-fluid mt-2 mb-2 text-white">
 
-        <h2 class="text-center mb-3" style="color: olivedrab;">Kahramanmaraş İstiklal University MMTF Smart Faculty Climate Control</h2>
+        @* <h2 class="text-center mb-3" style="color: olivedrab;">Climate Control</h2>*@
 
-        <!-- Last Values -->
         <div class="row mb-2 flex-shrink-0">
             <div class="col-lg-6 col-md-6 col-12 mb-2">
                 <div class="card shadow-lg h-100 d-flex align-items-center justify-content-center">
@@ -95,10 +96,8 @@
             </div>
         </div>
 
-        <!-- Date/Time Label -->
         <div class="data-time-label" style="font-size: large; color: darkgoldenrod;" id="lastDataTime">--</div>
 
-        <!-- Charts -->
         <div class="row flex-grow-1" style="flex: 1;">
             <div class="col-lg-6 col-md-6 col-12 mb-2 d-flex flex-column">
                 <div class="card shadow-lg flex-grow-1 d-flex flex-column">
@@ -121,7 +120,10 @@
                 </div>
             </div>
         </div>
+
     </div>
+
+    <div class="data-time-label" style="font-size: small; color: darkgoldenrod;">The charts include data from the last 288 data.</div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
@@ -210,7 +212,16 @@
                     responsive:true,
                     maintainAspectRatio:false,
                     scales:{
-                        x:{ ticks:{ color:"white", autoSkip:true, maxRotation:0 }, grid:{ color:"rgba(255,255,255,0.05)" } },
+                        x:{
+                            ticks:{
+                                color:"white",
+                                autoSkip:true,
+                                maxTicksLimit: 20, // Ekranda en fazla 20 tarih göster (kalabalığı önler)
+                                minRotation: 90,
+                                maxRotation: 90
+                            },
+                            grid:{ color:"rgba(255,255,255,0.05)" }
+                        },
                         y:{ beginAtZero:true, max:maxY, ticks:{ color:"white" }, grid:{ color:"rgba(255,255,255,0.1)" } }
                     },
                     plugins:{
@@ -234,14 +245,18 @@
         const humChart = createChart(humCtx, 100);
         window.addEventListener("resize", ()=>{ tempChart.resize(); humChart.resize(); });
 
+        // Güncellenmiş Etiket Fonksiyonu: Artık 3 saatlik blok yerine gerçek saati gösteriyor
         function getHourLabel(date){
-            const hour = date.getHours();
-            const roundedHour = Math.floor(hour/3)*3;
-            return roundedHour.toString().padStart(2,'0') + ".00";
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            // Format: Gün/Ay Saat:Dakika (Örn: 08/12 14:30)
+            return `${day}/${month} ${hours}:${minutes}`;
         }
 
         // Firebase verileri
-        telemetryRef.limitToLast(432).on("child_added", s=>updateCharts(s,"add"));
+        telemetryRef.limitToLast(288).on("child_added", s=>updateCharts(s,"add"));
         telemetryRef.on("child_changed", s=>updateCharts(s,"update"));
         telemetryRef.on("child_removed", s=>updateCharts(s,"remove"));
 
@@ -294,4 +309,3 @@
     </script>
 
 </body>
-</html>
