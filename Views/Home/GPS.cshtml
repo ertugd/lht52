@@ -1,27 +1,71 @@
 ﻿@{
-    ViewData["Title"] = "Canlı GPS Takibi";
+    ViewData["Title"] = "Live GPS Tracking";
 }
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
 <style>
-    /* Sayfa Düzeni */
+    /* Temel Ayarlar */
+    body {
+        overflow-x: hidden;
+    }
+    /* Yatay kaydırmayı engelle */
+
     .dashboard-container {
         display: flex;
-        height: 85vh;
+        height: 88vh; /* Ekranın %88'i */
         gap: 15px;
-        margin-top: 15px;
+        position: relative; /* Mobil için referans noktası */
+        margin-top: 10px;
     }
 
-    /* Sol Panel */
+    /* --- SIDEBAR (LİSTE) TASARIMI --- */
     .sidebar {
-        width: 320px;
+        width: 340px;
         background: #f8f9fa;
         border: 1px solid #dee2e6;
         border-radius: 8px;
         display: flex;
         flex-direction: column;
+        transition: transform 0.3s ease-in-out; /* Kayma efekti */
+        z-index: 2000; /* Haritanın üstünde dursun */
+    }
+
+    /* Mobilde Sidebar Başlangıçta Gizli/Kayık Olsun */
+    @@media (max-width: 768px) {
+        .dashboard-container
+
+    {
+        display: block; /* Flex yapısını boz, üst üste binmelerine izin ver */
+        height: 90vh;
+        margin: 0;
+        padding: 0;
+    }
+
+    .sidebar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 85%; /* Ekranın %85'ini kaplasın */
+        transform: translateX(-105%); /* Ekranın soluna sakla */
+        box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+        background: #fff;
+    }
+
+        /* Bu sınıf eklendiğinde sidebar görünür olur */
+        .sidebar.active {
+            transform: translateX(0);
+        }
+
+    /* Harita mobilde tam ekran olsun */
+    #map {
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+    }
+
     }
 
     .sidebar-header {
@@ -29,6 +73,9 @@
         background: #fff;
         border-bottom: 1px solid #ddd;
         border-radius: 8px 8px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 
     .device-list-container {
@@ -37,7 +84,7 @@
         padding: 10px;
     }
 
-    /* Harita */
+    /* --- HARİTA --- */
     #map {
         flex-grow: 1;
         border-radius: 8px;
@@ -45,7 +92,34 @@
         z-index: 1;
     }
 
-    /* Cihaz Kartı */
+    /* --- MOBİL MENÜ BUTONU --- */
+    #mobile-menu-btn {
+        display: none; /* Masaüstünde gizle */
+        position: absolute;
+        top: 10px;
+        left: 50px; /* Zoom butonlarının yanına */
+        z-index: 1000;
+        padding: 8px 12px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    /* Mobilde butonu göster */
+    @@media (max-width: 768px) {
+        #mobile-menu-btn
+
+    {
+        display: block;
+    }
+
+    }
+
+    /* --- CİHAZ KARTLARI --- */
     .device-card {
         background: white;
         padding: 12px;
@@ -54,14 +128,13 @@
         border-left: 5px solid #007bff;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         cursor: pointer;
-        transition: transform 0.2s;
     }
 
-        .device-card:hover {
-            transform: translateX(3px);
+        .device-card:active {
+            background-color: #f0f8ff;
         }
 
-    /* Pil Renkleri */
+    /* Pil Renkleri & Animasyon */
     .bat-high {
         color: #28a745;
     }
@@ -70,7 +143,6 @@
         color: #fd7e14;
     }
 
-    /* Yanıp Sönen Kırmızı Pil (DÜZELTİLDİ: @@keyframes) */
     .bat-low {
         color: #dc3545;
         font-weight: bold;
@@ -91,29 +163,56 @@
         }
     }
 
-    /* Harita Üzerindeki Etiket Stili */
+    /* Harita Etiketi */
     .leaflet-tooltip.gps-label {
-        background-color: rgba(255, 255, 255, 0.9);
-        border: 1px solid #888;
+        background-color: rgba(255, 255, 255, 0.95);
+        border: 1px solid #666;
         color: #333;
-        font-weight: bold;
         font-size: 11px;
-        padding: 2px 5px;
+        padding: 3px 6px;
         border-radius: 4px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    /* Sidebar Kapatma Butonu (Mobilde görünür) */
+    .close-sidebar-btn {
+        display: none;
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        color: #333;
+    }
+    @@media (max-width: 768px) {
+        .close-sidebar-btn
+
+    {
+        display: block;
+    }
+
     }
 </style>
 
-<div class="container-fluid">
+<div class="container-fluid p-0 p-md-2">
+
     <div class="dashboard-container">
-        <div class="sidebar">
+        <button id="mobile-menu-btn" onclick="toggleSidebar()">
+            <i class="fas fa-list"></i> Followed
+        </button>
+
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h5 class="m-0"><i class="fas fa-satellite-dish"></i> Araçlar (<span id="device-count">0</span>)</h5>
-                <small id="connection-status" class="text-muted">Bağlanıyor...</small>
+                <div>
+                    <h5 class="m-0"><i class="fas fa-satellite-dish"></i> Followed (<span id="device-count">0</span>)</h5>
+                    <small id="connection-status" class="text-muted">Connecting...</small>
+                </div>
+                <button class="close-sidebar-btn" onclick="toggleSidebar()">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
+
             <div id="device-list" class="device-list-container">
                 <div class="text-center mt-5 text-muted">
-                    <i class="fas fa-circle-notch fa-spin"></i> Veri bekleniyor...
+                    <i class="fas fa-circle-notch fa-spin"></i> Waiting for data...
                 </div>
             </div>
         </div>
@@ -125,21 +224,18 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
 <script type="module">
-    // Firebase Kütüphaneleri
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // --- AYARLAR (BURAYI KENDİ PROJENE GÖRE DOLDUR) ---
+    // --- AYARLAR ---
     const firebaseConfig = {
-        databaseURL: "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app/", 
+        databaseURL: "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app/"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    // Veritabanındaki tablo adı
     const dbRef = ref(db, 'locations');
 
-    // Harita Başlangıcı
     var map = L.map('map').setView([39.0, 35.0], 6);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
@@ -148,16 +244,13 @@
 
     var markers = {};
 
-    // --- VERİ DİNLEME ---
     onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
-
         const listDiv = document.getElementById("device-list");
         const countSpan = document.getElementById("device-count");
         const statusSpan = document.getElementById("connection-status");
 
-        // Durum güncelle
-        statusSpan.innerText = "Canlı Veri Akışı";
+        statusSpan.innerText = "Live";
         statusSpan.style.color = "green";
         listDiv.innerHTML = "";
 
@@ -168,92 +261,74 @@
             keys.forEach(key => {
                 const record = data[key];
 
-                // GPSModel Yapısına Göre Veri Okuma
-                const lat = record.lat;
-                const lng = record.lng;
-                const devName = record.device_name;  // Model: [JsonProperty("device_name")]
-                const speed = record.speed || 0;     // Model: [JsonProperty("speed")]
-                const bat = record.battery;          // Model: [JsonProperty("battery")]
-                const time = record.last_update;     // Model: [JsonProperty("last_update")]
+                const lat = record.lat; const lng = record.lng;
+                const devName = record.device_name; const speed = record.speed || 0;
+                const bat = record.battery; const time = record.last_update;
 
                 if (lat && lng && lat !== 0) {
-
-                    // --- A) Harita İşlemleri ---
-
-                    // Popup (Tıklayınca açılan kutu)
+                    // --- Harita ---
                     const popupContent = `
-                        <div style="text-align:center">
-                            <strong>${devName}</strong><br>
-                            <span class="badge bg-secondary" style="font-size:0.75rem;">${time}</span>
-                            <hr style="margin:5px 0">
-                            Hız: <b>${speed} km/s</b><br>
-                            Pil: <b>%${bat}</b>
-                        </div>
-                    `;
+                        <div style="text-align:center"><strong>${devName}</strong><br>
+                        <span class="badge bg-light text-dark border">${time}</span><hr style="margin:5px 0">
+                        Hız: ${speed} km/s <br> Pil: %${bat}</div>`;
 
-                    // Tooltip (Harita üzerindeki etiket)
-                    // permanent: true -> Fareyle üstüne gelmeden de görünür
-                    const tooltipContent = `
-                        <div style="text-align:center">
-                            ${devName}<br>
-                            <small>${time}</small>
-                        </div>
-                    `;
+                    const tooltipContent = `<b>${devName}</b><br><small>${time}</small>`;
 
                     if (markers[key]) {
-                        // Var olanı güncelle
                         markers[key].setLatLng([lat, lng]);
                         markers[key].setPopupContent(popupContent);
                         markers[key].setTooltipContent(tooltipContent);
                     } else {
-                        // Yeni ekle
                         const newMarker = L.marker([lat, lng]).addTo(map);
-
                         newMarker.bindPopup(popupContent);
-
-                        // İSTEĞİN ÜZERİNE EKLENEN KISIM: Harita üstünde tarih gösterimi
-                        newMarker.bindTooltip(tooltipContent, {
-                            permanent: true,
-                            direction: 'top',
-                            className: 'gps-label'
-                        });
-
+                        newMarker.bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'gps-label' });
                         markers[key] = newMarker;
                     }
 
-                    // --- B) Liste İşlemleri ---
-                    let batClass = "bat-high";
-                    let batIcon = "fa-battery-full";
-
+                    // --- Liste ---
+                    let batClass = "bat-high"; let batIcon = "fa-battery-full";
                     if(bat < 60) { batClass = "bat-med"; batIcon = "fa-battery-half"; }
                     if(bat < 20) { batClass = "bat-low"; batIcon = "fa-battery-empty"; }
 
+                    // Tıklama olayına window.focusDevice ekledik
                     const cardHtml = `
                         <div class="device-card" onclick="window.focusDevice(${lat}, ${lng}, '${key}')">
                             <div class="d-flex justify-content-between">
                                 <strong>${devName}</strong>
                                 <span class="${batClass}"><i class="fas ${batIcon}"></i> %${bat}</span>
                             </div>
-                            <div class="d-flex justify-content-between mt-2 text-muted small">
-                                <span><i class="fas fa-tachometer-alt"></i> ${speed} km/s</span>
-                                <span><i class="far fa-clock"></i> ${time}</span>
-                            </div>
-                        </div>
-                    `;
+                            <small class="text-muted"><i class="far fa-clock"></i> ${time}</small>
+                        </div>`;
                     listDiv.innerHTML += cardHtml;
                 }
             });
         } else {
-            listDiv.innerHTML = "<div class='p-3 text-center'>Cihaz bulunamadı.</div>";
+            listDiv.innerHTML = "<div class='text-center p-3'>Veri yok.</div>";
             countSpan.innerText = "0";
         }
     });
 
-    // Listeye tıklayınca haritada odaklanma
+    // --- MENÜ İŞLEVLERİ (Global Scope) ---
+
+    // 1. Sidebar Aç/Kapa Fonksiyonu
+    window.toggleSidebar = function() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('active');
+    };
+
+    // 2. Cihaza Odaklanma ve Mobilde Menüyü Kapatma
     window.focusDevice = function(lat, lng, key) {
+        // Haritada uç
         map.flyTo([lat, lng], 16, { duration: 1.5 });
+
         if(markers[key]) {
             setTimeout(() => { markers[key].openPopup(); }, 1500);
+        }
+
+        // Eğer ekran genişliği mobil boyutundaysa (768px altı), menüyü kapat
+        if (window.innerWidth <= 768) {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.remove('active'); // Menüyü gizle
         }
     };
 </script>
