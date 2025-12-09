@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
+// WeatherService'i ekle
+builder.Services.AddHttpClient<istiklal_karacasu_lorawan.Services.WeatherService>();
 var secretPath = "/etc/secrets/appsettings.json";
 if (File.Exists(secretPath))
 {

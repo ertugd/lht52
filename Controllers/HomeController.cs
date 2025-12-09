@@ -1,26 +1,40 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using istiklal_karacasu_lorawan.Services;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace istiklal_karacasu_lorawan.Controllers
 {
     public class HomeController : Controller
     {
-        public HomeController()
-        {
+        private readonly WeatherService _weatherService;
 
+        public HomeController(WeatherService weatherService)
+        {
+            _weatherService = weatherService;
         }
 
-        public async Task<IActionResult> Index()
-        {
-           return View();   
-        }
-
-        public async Task<IActionResult> GPS()
+        public IActionResult Index()
         {
             return View();
+        }
+
+        public IActionResult GPS()
+        {
+            return View();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetWeatherData()
+        {
+            var current = await _weatherService.GetCurrentWeatherAsync();
+            var hourly = await _weatherService.GetHourlyForecastAsync();
+            var daily = await _weatherService.GetDailyForecastAsync();
+
+            return Json(new
+            {
+                current,
+                hourly,
+                daily
+            });
         }
     }
 }
