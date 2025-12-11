@@ -12,7 +12,7 @@
 <body>
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-dark border-bottom box-shadow mb-3">
-            <div class="container">
+            <div class="container-fluid">
                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">
                     <span class="d-sm-none">KİÜ MMTF Smart Faculty</span>
                     <span class="d-none d-sm-block">Kahramanmaraş İstiklal University MMTF Smart Faculty</span>
@@ -35,14 +35,15 @@
             </div>
         </nav>
     </header>
-    <div class="container">
+
+    <div class="container-fluid">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
     </div>
 
     <footer class="border-top footer text-muted">
-        <div class="container" style="color:darkcyan">
+        <div class="container-fluid" style="color:darkcyan">
             Kahramanmaraş İstiklal University, Artificial Intelligence And Intelligent Systems (M.Sc.), Database and Management Course-YZA0005, Final Project.<br />
             Created by İhsan Korkmaz and supervised by Dr. Ertuğrul Doğruluk &copy;2025
         </div>
