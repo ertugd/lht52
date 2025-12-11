@@ -1,7 +1,7 @@
 ﻿using istiklal_karacasu_lorawan.Models;
 using istiklal_karacasu_lorawan.Services;
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json; // Required for parsing JsonElement
+using System.Text.Json;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -31,20 +31,37 @@ public class WebhookGPSController : ControllerBase
         }
         return false;
     }
+
+    // YARDIMCI METOT: Türkiye Saatini Getir (Sunucu Linux da olsa Windows da olsa çalışır)
+    private DateTime GetTurkeyTime()
+    {
+        try
+        {
+            // Windows sunucular için ID
+            var trZone = TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, trZone);
+        }
+        catch
+        {
+            // Linux/Docker sunucular için ID (IANA)
+            var trZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, trZone);
+        }
+    }
+
     [HttpPost]
     public async Task<IActionResult> Post([FromBody] ChirpstackIncomingDto payload)
     {
         if (!ValidateApiKey()) return Unauthorized(new { error = "invalid api key" });
 
-        // 1. Verileri Ayıklama (Parsing)
         double? lat = null;
         double? lng = null;
         double bat = 0;
 
+        // 1. Veriyi Ayıkla
         if (payload.Object?.Messages != null)
         {
             var flatList = payload.Object.Messages.SelectMany(x => x).ToList();
-
             foreach (var item in flatList)
             {
                 if (item.MeasurementValue is not null && double.TryParse(item.MeasurementValue.ToString(), out double val))
@@ -56,36 +73,38 @@ public class WebhookGPSController : ControllerBase
             }
         }
 
-        // 2. Durum Belirleme (GPS Var mı Yok mu?)
+        // 2. Durum Belirleme
         string statusMessage = "Aktif";
         bool gpsValid = true;
 
         if (lat == null || lng == null || lat == 0 || lng == 0)
         {
-            // GPS verisi yoksa veya hatalıysa
             gpsValid = false;
             statusMessage = "Konum Alınamadı (GPS Yok)";
-
-            // Haritada saçma bir yer göstermemesi veya varsayılan bir noktaya gitmesi için 0 veya son bilinen konum
             lat = 0;
             lng = 0;
         }
 
-        // 3. Model Oluşturma
+        // 3. Tarihi Türkiye Saatine Çevir
+        DateTime trTime = GetTurkeyTime();
+
+        // 4. Modeli Oluştur
         var gpsData = new GPSModel
         {
             Latitude = lat.Value,
             Longitude = lng.Value,
-            Battery = (int)bat, // GPS çekmese bile batarya verisi gelebilir, bunu kaybetmeyelim
+            Battery = (int)bat,
             DeviceName = payload.DeviceInfo?.DeviceName ?? "Bilinmiyor",
-            LastUpdate = DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss"),
+
+            // BURASI GÜNCELLENDİ: Artık sunucu saatini değil, TR saatini basıyoruz.
+            LastUpdate = trTime.ToString("dd.MM.yyyy HH:mm:ss"),
+
             Hiz = 0,
-            Status = statusMessage // Yeni durum mesajı
+            Status = statusMessage
         };
 
         try
         {
-            // GPS çekmese bile veritabanına yazıyoruz ki kullanıcı cihazın çalıştığını (pilini) görsün
             await _db.AddEntryGPSAsync(gpsData, payload.DeviceInfo.DevEui);
 
             if (gpsValid)
@@ -96,27 +115,6 @@ public class WebhookGPSController : ControllerBase
         catch (Exception ex)
         {
             return StatusCode(500, $"Firebase Hatası: {ex.Message}");
-        }
-    }
-
-    // Helper function to handle System.Text.Json elements safely
-    private double? GetDoubleValue(object value)
-    {
-        try
-        {
-            if (value is JsonElement element)
-            {
-                if (element.ValueKind == JsonValueKind.Number)
-                    return element.GetDouble();
-            }
-            if (value is double d) return d;
-            if (value is int i) return (double)i;
-
-            return null;
-        }
-        catch
-        {
-            return null;
         }
     }
 }
