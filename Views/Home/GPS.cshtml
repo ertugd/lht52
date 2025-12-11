@@ -29,7 +29,7 @@
             height: 100vh;
             width: 100%;
             overflow: hidden;
-            position: relative;
+            position: relative; /* Bu özellik sayesinde içindeki absolute buton burayı referans alır */
         }
 
         /* --- SIDEBAR --- */
@@ -119,32 +119,35 @@
 
         /* --- MOBİL UYUMLULUK (Razor için @@ kullanıldı) --- */
         @@media (max-width: 768px) {
-            .sidebar {
-                position: absolute;
-                height: 100%;
-                width: 85%;
-                transform: translateX(-100%); /* Varsayılan kapalı */
-                top: 0;
-                left: 0;
-            }
+            .sidebar
 
-                .sidebar.active {
-                    transform: translateX(0);
-                }
+        {
+            position: absolute;
+            height: 100%;
+            width: 85%;
+            transform: translateX(-100%); /* Varsayılan kapalı */
+            top: 0;
+            left: 0;
+        }
 
-            #mobile-menu-btn {
-                display: block !important;
-            }
+        .sidebar.active {
+            transform: translateX(0);
+        }
+
+        #mobile-menu-btn {
+            display: block !important;
+        }
+
         }
     </style>
 </head>
 <body>
 
-    <button id="mobile-menu-btn" class="btn btn-primary shadow-sm" onclick="window.toggleSidebar()">
-        <i class="fas fa-bars"></i> Cihazlar
-    </button>
-
     <div class="dashboard-container">
+        <button id="mobile-menu-btn" class="btn btn-primary shadow-sm" onclick="window.toggleSidebar()">
+            <i class="fas fa-bars"></i> Cihazlar
+        </button>
+
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h5 class="m-0"><i class="fas fa-map-marked-alt"></i> Cihaz Listesi (<span id="device-count">0</span>)</h5>
