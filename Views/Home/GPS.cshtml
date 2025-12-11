@@ -1,334 +1,309 @@
 ﻿@{
-    ViewData["Title"] = "Live GPS Tracking";
+    ViewData["Title"] = "Canlı Takip";
+    Layout = null;
 }
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Canlı GPS Takip</title>
 
-<style>
-    /* Temel Ayarlar */
-    body {
-        overflow-x: hidden;
-    }
-    /* Yatay kaydırmayı engelle */
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    .dashboard-container {
-        display: flex;
-        height: 88vh; /* Ekranın %88'i */
-        gap: 15px;
-        position: relative; /* Mobil için referans noktası */
-        margin-top: 10px;
-    }
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-    /* --- SIDEBAR (LİSTE) TASARIMI --- */
-    .sidebar {
-        width: 340px;
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        display: flex;
-        flex-direction: column;
-        transition: transform 0.3s ease-in-out; /* Kayma efekti */
-        z-index: 2000; /* Haritanın üstünde dursun */
-    }
-
-    /* Mobilde Sidebar Başlangıçta Gizli/Kayık Olsun */
-    @@media (max-width: 768px) {
-        .dashboard-container
-
-    {
-        display: block; /* Flex yapısını boz, üst üste binmelerine izin ver */
-        height: 90vh;
-        margin: 0;
-        padding: 0;
-    }
-
-    .sidebar {
-        position: absolute;
-        top: 0;
-        left: 0;
-        height: 100%;
-        width: 85%; /* Ekranın %85'ini kaplasın */
-        transform: translateX(-105%); /* Ekranın soluna sakla */
-        box-shadow: 2px 0 10px rgba(0,0,0,0.2);
-        background: #fff;
-    }
-
-        /* Bu sınıf eklendiğinde sidebar görünür olur */
-        .sidebar.active {
-            transform: translateX(0);
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-    /* Harita mobilde tam ekran olsun */
-    #map {
-        width: 100%;
-        height: 100%;
-        border-radius: 0;
-    }
-
-    }
-
-    .sidebar-header {
-        padding: 15px;
-        background: #fff;
-        border-bottom: 1px solid #ddd;
-        border-radius: 8px 8px 0 0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .device-list-container {
-        flex-grow: 1;
-        overflow-y: auto;
-        padding: 10px;
-    }
-
-    /* --- HARİTA --- */
-    #map {
-        flex-grow: 1;
-        border-radius: 8px;
-        border: 2px solid #ddd;
-        z-index: 1;
-    }
-
-    /* --- MOBİL MENÜ BUTONU --- */
-    #mobile-menu-btn {
-        display: none; /* Masaüstünde gizle */
-        position: absolute;
-        top: 10px;
-        left: 50px; /* Zoom butonlarının yanına */
-        z-index: 1000;
-        padding: 8px 12px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        cursor: pointer;
-        font-weight: bold;
-    }
-
-    /* Mobilde butonu göster */
-    @@media (max-width: 768px) {
-        #mobile-menu-btn
-
-    {
-        display: block;
-    }
-
-    }
-
-    /* --- CİHAZ KARTLARI --- */
-    .device-card {
-        background: white;
-        padding: 12px;
-        margin-bottom: 10px;
-        border-radius: 8px;
-        border-left: 5px solid #007bff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        cursor: pointer;
-    }
-
-        .device-card:active {
-            background-color: #f0f8ff;
+        .dashboard-container {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
         }
 
-    /* Pil Renkleri & Animasyon */
-    .bat-high {
-        color: #28a745;
-    }
-
-    .bat-med {
-        color: #fd7e14;
-    }
-
-    .bat-low {
-        color: #dc3545;
-        font-weight: bold;
-        animation: pulse 2s infinite;
-    }
-
-    @@keyframes pulse {
-        0% {
-            opacity: 1;
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 360px;
+            background: #fff;
+            border-right: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+            z-index: 2000;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
         }
 
-        50% {
-            opacity: 0.5;
+        .sidebar-header {
+            padding: 15px;
+            background: #0d6efd;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        100% {
-            opacity: 1;
+        .device-list-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f8f9fa;
         }
-    }
 
-    /* Harita Etiketi */
-    .leaflet-tooltip.gps-label {
-        background-color: rgba(255, 255, 255, 0.95);
-        border: 1px solid #666;
-        color: #333;
-        font-size: 11px;
-        padding: 3px 6px;
-        border-radius: 4px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
+        /* --- HARİTA --- */
+        #map {
+            flex-grow: 1;
+            height: 100%;
+            z-index: 1;
+        }
 
-    /* Sidebar Kapatma Butonu (Mobilde görünür) */
-    .close-sidebar-btn {
-        display: none;
-        background: none;
-        border: none;
-        font-size: 1.2rem;
-        color: #333;
-    }
-    @@media (max-width: 768px) {
-        .close-sidebar-btn
+        /* --- KART TASARIMI --- */
+        .device-card {
+            background: white;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            border-left: 5px solid #ccc;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
 
-    {
-        display: block;
-    }
+            .device-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            }
 
-    }
-</style>
+        .border-active {
+            border-left-color: #28a745 !important;
+        }
 
-<div class="container-fluid p-0 p-md-2">
+        .border-error {
+            border-left-color: #dc3545 !important;
+        }
+
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .status-ok {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .status-err {
+            background-color: #f8d7da;
+            color: #842029;
+        }
+
+        /* Mobil Menü Butonu */
+        #mobile-menu-btn {
+            display: none; /* Varsayılan gizli */
+            position: absolute;
+            top: 15px;
+            left: 60px;
+            z-index: 1001;
+        }
+
+        /* --- MOBİL UYUMLULUK (Razor için @@ kullanıldı) --- */
+        @@media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                height: 100%;
+                width: 85%;
+                transform: translateX(-100%); /* Varsayılan kapalı */
+                top: 0;
+                left: 0;
+            }
+
+                .sidebar.active {
+                    transform: translateX(0);
+                }
+
+            #mobile-menu-btn {
+                display: block !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <button id="mobile-menu-btn" class="btn btn-primary shadow-sm" onclick="window.toggleSidebar()">
+        <i class="fas fa-bars"></i> Cihazlar
+    </button>
 
     <div class="dashboard-container">
-        <button id="mobile-menu-btn" onclick="toggleSidebar()">
-            <i class="fas fa-list"></i> Followed
-        </button>
-
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <div>
-                    <h5 class="m-0"><i class="fas fa-satellite-dish"></i> Followed (<span id="device-count">0</span>)</h5>
-                    <small id="connection-status" class="text-muted">Connecting...</small>
-                </div>
-                <button class="close-sidebar-btn" onclick="toggleSidebar()">
+                <h5 class="m-0"><i class="fas fa-map-marked-alt"></i> Cihaz Listesi (<span id="device-count">0</span>)</h5>
+                <button class="btn btn-sm btn-outline-light d-md-none" onclick="window.toggleSidebar()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
+            <div class="px-3 py-2 bg-light border-bottom text-center">
+                <small id="connection-status" class="text-muted">Bağlanıyor...</small>
+            </div>
+
             <div id="device-list" class="device-list-container">
                 <div class="text-center mt-5 text-muted">
-                    <i class="fas fa-circle-notch fa-spin"></i> Waiting for data...
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2">Veriler yükleniyor...</p>
                 </div>
             </div>
         </div>
 
         <div id="map"></div>
     </div>
-</div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // --- AYARLAR ---
-    const firebaseConfig = {
-        databaseURL: "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app/"
-    };
+        // Firebase Ayarlarınız
+        const firebaseConfig = {
+            databaseURL: "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app/"
+        };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const dbRef = ref(db, 'locations');
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const dbRef = ref(db, 'locations');
 
-    var map = L.map('map').setView([39.0, 35.0], 6);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap'
-    }).addTo(map);
+        // Harita Kurulumu
+        var map = L.map('map').setView([39.0, 35.0], 6);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
 
-    var markers = {};
+        var markers = {};
 
-    onValue(dbRef, (snapshot) => {
-        const data = snapshot.val();
-        const listDiv = document.getElementById("device-list");
-        const countSpan = document.getElementById("device-count");
-        const statusSpan = document.getElementById("connection-status");
+        // Veri Dinleme
+        onValue(dbRef, (snapshot) => {
+            const data = snapshot.val();
+            const listDiv = document.getElementById("device-list");
+            const countSpan = document.getElementById("device-count");
+            const statusSpan = document.getElementById("connection-status");
 
-        statusSpan.innerText = "Live";
-        statusSpan.style.color = "green";
-        listDiv.innerHTML = "";
+            // Bağlantı başarılı mesajı
+            statusSpan.innerHTML = '<i class="fas fa-wifi text-success"></i> Canlı Bağlantı';
 
-        if (data) {
+            if (!data) {
+                listDiv.innerHTML = "<div class='text-center p-4 text-muted'>Aktif cihaz bulunamadı.</div>";
+                countSpan.innerText = "0";
+                return;
+            }
+
             const keys = Object.keys(data);
             countSpan.innerText = keys.length;
+
+            let listHtmlBuffer = "";
 
             keys.forEach(key => {
                 const record = data[key];
 
-                const lat = record.lat; const lng = record.lng;
-                const devName = record.device_name; const speed = record.speed || 0;
-                const bat = record.battery; const time = record.last_update;
+                // Veri güvenliği
+                const lat = record.lat || 0;
+                const lng = record.lng || 0;
+                const devName = record.device_name || "Bilinmeyen Cihaz";
+                const bat = record.battery || 0;
+                const time = record.last_update || "-";
+                const status = record.status || "Aktif";
 
-                if (lat && lng && lat !== 0) {
-                    // --- Harita ---
+                // GPS geçerli mi? (Sıfır değilse ve null değilse)
+                const isGpsValid = (lat !== 0 && lng !== 0);
+
+                // --- HARİTA GÜNCELLEME ---
+                if (isGpsValid) {
                     const popupContent = `
-                        <div style="text-align:center"><strong>${devName}</strong><br>
-                        <span class="badge bg-light text-dark border">${time}</span><hr style="margin:5px 0">
-                        Hız: ${speed} km/s <br> Pil: %${bat}</div>`;
-
-                    const tooltipContent = `<b>${devName}</b><br><small>${time}</small>`;
+                        <div style="text-align:center;">
+                            <strong>${devName}</strong><br>
+                            <span class="badge bg-secondary">${time}</span>
+                            <hr style="margin:5px 0">
+                            Pil: %${bat} <br>
+                            Durum: ${status}
+                        </div>`;
 
                     if (markers[key]) {
                         markers[key].setLatLng([lat, lng]);
                         markers[key].setPopupContent(popupContent);
-                        markers[key].setTooltipContent(tooltipContent);
                     } else {
                         const newMarker = L.marker([lat, lng]).addTo(map);
                         newMarker.bindPopup(popupContent);
-                        newMarker.bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'gps-label' });
+                        newMarker.bindTooltip(devName, { permanent: false, direction: 'top' });
                         markers[key] = newMarker;
                     }
-
-                    // --- Liste ---
-                    let batClass = "bat-high"; let batIcon = "fa-battery-full";
-                    if(bat < 60) { batClass = "bat-med"; batIcon = "fa-battery-half"; }
-                    if(bat < 20) { batClass = "bat-low"; batIcon = "fa-battery-empty"; }
-
-                    // Tıklama olayına window.focusDevice ekledik
-                    const cardHtml = `
-                        <div class="device-card" onclick="window.focusDevice(${lat}, ${lng}, '${key}')">
-                            <div class="d-flex justify-content-between">
-                                <strong>${devName}</strong>
-                                <span class="${batClass}"><i class="fas ${batIcon}"></i> %${bat}</span>
-                            </div>
-                            <small class="text-muted"><i class="far fa-clock"></i> ${time}</small>
-                        </div>`;
-                    listDiv.innerHTML += cardHtml;
                 }
+
+                // --- LİSTE GÜNCELLEME ---
+                let borderClass = isGpsValid && status === "Aktif" ? "border-active" : "border-error";
+                let statusBadgeClass = isGpsValid && status === "Aktif" ? "status-ok" : "status-err";
+                let statusIcon = isGpsValid ? '<i class="fas fa-map-marker-alt"></i>' : '<i class="fas fa-eye-slash"></i>';
+
+                let batIcon = "fa-battery-full";
+                let batColor = "text-success";
+                if(bat < 50) { batIcon = "fa-battery-half"; batColor = "text-warning"; }
+                if(bat < 20) { batIcon = "fa-battery-empty"; batColor = "text-danger"; }
+
+                listHtmlBuffer += `
+                    <div class="device-card ${borderClass}" onclick="window.focusDevice(${lat}, ${lng}, '${key}')">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h6 class="m-0 fw-bold text-dark">${devName}</h6>
+                            <span class="${batColor} fw-bold"><i class="fas ${batIcon}"></i> %${bat}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="status-badge ${statusBadgeClass}">
+                                ${statusIcon} ${status}
+                            </span>
+                            <small class="text-muted" style="font-size:11px">${time}</small>
+                        </div>
+                    </div>
+                `;
             });
-        } else {
-            listDiv.innerHTML = "<div class='text-center p-3'>Veri yok.</div>";
-            countSpan.innerText = "0";
-        }
-    });
 
-    // --- MENÜ İŞLEVLERİ (Global Scope) ---
+            listDiv.innerHTML = listHtmlBuffer;
+        });
 
-    // 1. Sidebar Aç/Kapa Fonksiyonu
-    window.toggleSidebar = function() {
-        const sidebar = document.getElementById('sidebar');
-        sidebar.classList.toggle('active');
-    };
-
-    // 2. Cihaza Odaklanma ve Mobilde Menüyü Kapatma
-    window.focusDevice = function(lat, lng, key) {
-        // Haritada uç
-        map.flyTo([lat, lng], 16, { duration: 1.5 });
-
-        if(markers[key]) {
-            setTimeout(() => { markers[key].openPopup(); }, 1500);
-        }
-
-        // Eğer ekran genişliği mobil boyutundaysa (768px altı), menüyü kapat
-        if (window.innerWidth <= 768) {
+        // --- GLOBAL JS FONKSİYONLARI ---
+        window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
-            sidebar.classList.remove('active'); // Menüyü gizle
-        }
-    };
-</script>
+            sidebar.classList.toggle('active');
+        };
+
+        window.focusDevice = function(lat, lng, key) {
+            if (!lat || !lng || lat === 0 || lng === 0) {
+                alert("Bu cihazdan geçerli GPS verisi alınamıyor. Konum haritada gösterilemez.");
+                return;
+            }
+
+            map.flyTo([lat, lng], 16, {
+                animate: true,
+                duration: 1.5
+            });
+
+            if(markers[key]) {
+                setTimeout(() => { markers[key].openPopup(); }, 1500);
+            }
+
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('active');
+            }
+        };
+    </script>
+</body>
+</html>

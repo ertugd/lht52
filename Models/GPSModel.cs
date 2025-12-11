@@ -1,8 +1,9 @@
 ﻿using Newtonsoft.Json;
+using System.Collections.Generic;
 
 namespace istiklal_karacasu_lorawan.Models
 {
-    // 1. Firebase'e Kaydedilecek Temiz Model
+    // 1. Firebase'e Kaydedilecek Temiz Model (Burası Aynı Kalır)
     public class GPSModel
     {
         [JsonProperty("lat")]
@@ -12,7 +13,7 @@ namespace istiklal_karacasu_lorawan.Models
         public double Longitude { get; set; }
 
         [JsonProperty("speed")]
-        public double Hiz { get; set; } = 0; // SenseCAP genelde hız vermez, varsayılan 0
+        public double Hiz { get; set; } = 0;
 
         [JsonProperty("battery")]
         public int Battery { get; set; }
@@ -22,17 +23,21 @@ namespace istiklal_karacasu_lorawan.Models
 
         [JsonProperty("device_name")]
         public string DeviceName { get; set; }
+
+        // YENİ EKLENEN ALAN: Kullanıcıya bilgi vermek için
+        [JsonProperty("status")]
+        public string Status { get; set; }
     }
 
-    // 2. ChirpStack'ten Gelen Karmaşık JSON Yapısı
+    // 2. ChirpStack'ten Gelen Ana DTO
     public class ChirpstackIncomingDto
     {
         [JsonProperty("deviceInfo")]
         public DeviceInfo DeviceInfo { get; set; }
 
-        // SenseCAP Decoder çıktısı buraya düşer
+        // JSON'daki "object" alanı buraya eşleşir
         [JsonProperty("object")]
-        public SenseCapDecodedData Object { get; set; }
+        public SenseCapRawData Object { get; set; }
     }
 
     public class DeviceInfo
@@ -44,11 +49,21 @@ namespace istiklal_karacasu_lorawan.Models
         public string DeviceName { get; set; }
     }
 
-    public class SenseCapDecodedData
+    // 3. JSON'daki "object" içindeki karmaşık yapıyı çözen sınıflar
+    public class SenseCapRawData
     {
-        // ChirpStack codec'ine göre bu isimler değişebilir (lat/latitude)
-        public double? latitude { get; set; }
-        public double? longitude { get; set; }
-        public int? battery { get; set; }
+        // JSON'da veri: "messages": [ [ {..}, {..} ] ] şeklinde (Liste içinde Liste)
+        [JsonProperty("messages")]
+        public List<List<SenseCapMessageItem>> Messages { get; set; }
+    }
+
+    public class SenseCapMessageItem
+    {
+        [JsonProperty("type")]
+        public string Type { get; set; } // Örn: "Latitude", "Longitude", "Battery"
+
+        // "measurementValue" bazen sayı (37.5), bazen boş dizi [] olabildiği için 'object' yapıyoruz
+        [JsonProperty("measurementValue")]
+        public object MeasurementValue { get; set; }
     }
 }
