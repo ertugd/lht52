@@ -67,25 +67,32 @@
             justify-content: space-between;
             min-height: 480px;
             position: relative;
-            overflow: hidden; /* Işık efektleri taşmasın diye */
+            overflow: visible; /* Tooltip dışarı taşabilsin diye visible yaptık */
         }
         
-        /* Sol Üst Işık */
-        .weather-module::before {
+        /* Arka plan ışık efektleri (::before/::after) için container */
+        .weather-bg-effects {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            overflow: hidden; border-radius: 12px; pointer-events: none; z-index: 0;
+        }
+        .weather-bg-effects::before {
             content: ''; position: absolute; top: -60px; right: -60px; width: 250px; height: 250px;
             background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 70%);
-            border-radius: 50%; pointer-events: none; z-index: 0;
+            border-radius: 50%;
         }
-        /* Sağ Alt Işık */
-        .weather-module::after {
+        .weather-bg-effects::after {
             content: ''; position: absolute; bottom: -80px; right: -80px; width: 300px; height: 300px;
             background: radial-gradient(circle, rgba(187, 222, 251, 0.4) 0%, rgba(255,255,255,0) 70%);
-            border-radius: 50%; pointer-events: none; z-index: 0;
+            border-radius: 50%;
         }
 
         .mgm-header, .current-stats-row, .mgm-chart-area, .mgm-forecast-grid { position: relative; z-index: 1; }
 
         .mgm-header { margin-bottom: 20px; }
+        
+        /* YENİ: TARİH BİLGİSİ */
+        .date-info { font-size: 14px; color: #7f8c8d; margin-bottom: 5px; font-weight: 500; }
+        
         .city-name { font-size: 32px; font-weight: 700; color: #2c3e50; margin: 0; line-height: 1.2; text-shadow: 0 2px 4px rgba(255,255,255,0.8); }
         .weather-desc { font-size: 15px; color: #5d6d7e; margin-top: 4px; text-transform: capitalize; }
 
@@ -112,10 +119,10 @@
         .forecast-item {
             padding: 5px; text-align: center; border-right: 1px solid rgba(0,0,0,0.05);
             display: flex; flex-direction: column; align-items: center; gap: 6px;
-            cursor: help; /* İpucu imleci */
+            cursor: help;
             transition: background-color 0.2s;
             border-radius: 8px;
-            position: relative; /* Tooltip için referans nokta */
+            position: relative; /* Tooltip için referans */
         }
         .forecast-item:hover { background-color: rgba(255,255,255,0.6); }
         .forecast-item:last-child { border-right: none; }
@@ -126,6 +133,34 @@
         .f-temps { display: flex; gap: 10px; font-weight: 700; font-size: 14px; }
         .t-min { color: #3498db; }
         .t-max { color: #e74c3c; }
+
+        /* --- TOOLTIP TASARIMI --- */
+        .forecast-tooltip {
+            position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%);
+            width: 260px; background: #ffffff; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid #e1e4e8;
+            padding: 15px; z-index: 1000;
+            display: none; text-align: left; pointer-events: none; opacity: 0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .forecast-tooltip::after {
+            content: ''; position: absolute; top: 100%; left: 50%; margin-left: -8px;
+            border-width: 8px; border-style: solid; border-color: #ffffff transparent transparent transparent;
+        }
+        .forecast-tooltip.active { display: block; opacity: 1; transform: translateX(-50%) translateY(-5px); }
+
+        .tooltip-header {
+            border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;
+            font-weight: 700; color: #2c3e50; font-size: 14px; display: flex; justify-content: space-between;
+        }
+        .tooltip-body { display: flex; gap: 15px; }
+        .tooltip-left { flex: 1; text-align: center; border-right: 1px solid #eee; padding-right: 10px; }
+        .tooltip-right { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 5px; font-size: 12px; }
+        .tooltip-icon { font-size: 28px; margin: 5px 0; }
+        .tooltip-temps { font-weight: 700; font-size: 13px; }
+        .tooltip-row { display: flex; justify-content: space-between; color: #555; }
+        .tooltip-val { font-weight: 600; color: #333; }
+
 
         /* --- SAĞ PANEL: SENSÖR KARTLARI --- */
         .sensor-dashboard { display: flex; flex-direction: column; gap: 20px; }
@@ -162,51 +197,6 @@
         .chart-title { font-size: 16px; font-weight: 600; text-align: center; margin-bottom: 15px; color: #555; }
         .chart-container { height: 280px; }
 
-        /* --- TOOLTIP (BALONCUK) TASARIMI --- */
-        .forecast-tooltip {
-            position: absolute;
-            bottom: 110%; /* Kutunun tam üstünde */
-            left: 50%;
-            transform: translateX(-50%);
-            width: 280px;
-            background: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
-            border: 1px solid #e1e4e8;
-            padding: 15px;
-            z-index: 1000;
-            display: none; /* Başlangıçta gizli */
-            text-align: left;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s ease, transform 0.2s ease;
-        }
-
-        /* Küçük ok işareti */
-        .forecast-tooltip::after {
-            content: ''; position: absolute; top: 100%; left: 50%; margin-left: -8px;
-            border-width: 8px; border-style: solid; border-color: #ffffff transparent transparent transparent;
-        }
-
-        .forecast-tooltip.active {
-            display: block; opacity: 1; transform: translateX(-50%) translateY(-5px);
-        }
-
-        .tooltip-header {
-            border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;
-            font-weight: 700; color: #2c3e50; font-size: 15px;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .tooltip-body { display: flex; gap: 15px; }
-        .tooltip-left { flex: 1; text-align: center; border-right: 1px solid #eee; padding-right: 10px; }
-        .tooltip-right { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px; font-size: 13px; }
-        
-        .tooltip-icon { font-size: 32px; margin: 5px 0; }
-        .tooltip-desc { font-size: 12px; color: #7f8c8d; margin-bottom: 5px; }
-        .tooltip-temps { font-weight: 700; font-size: 14px; }
-        .tooltip-row { display: flex; justify-content: space-between; color: #555; }
-        .tooltip-val { font-weight: 600; color: #333; }
-
         /* --- RESPONSIVE --- */
         @@media (max-width: 1200px) {
             .top-section { grid-template-columns: 1fr; }
@@ -221,7 +211,7 @@
             .big-temp { font-size: 56px; }
             .city-name { font-size: 28px; text-align: center; }
             .mgm-header { text-align: center; }
-            .forecast-tooltip { width: 200px; } /* Mobilde tooltip daralsın */
+            .forecast-tooltip { width: 220px; }
         }
     </style>
 </head>
@@ -232,9 +222,13 @@
         <div class="top-section">
             
             <div class="weather-module">
+                <div class="weather-bg-effects"></div>
+
                 <div class="mgm-header">
+                    <div class="date-info" id="dateInfo">Yükleniyor...</div>
+                    
                     <h1 class="city-name" id="cityName">Kahramanmaraş</h1>
-                    <div class="weather-desc" id="weatherSubtitle">Veriler Alınıyor...</div>
+                    <div class="weather-desc" id="weatherSubtitle">...</div>
                 </div>
 
                 <div class="current-stats-row">
@@ -306,19 +300,32 @@
         let globalDailyData = [];
 
         // ---------------------------------------------------------
-        // 1. MGM HAVA DURUMU
+        // 1. OPEN-METEO HAVA DURUMU (YENİ SİSTEM)
         // ---------------------------------------------------------
         async function loadWeatherData() {
             try {
                 const response = await fetch('/Home/GetWeatherData');
                 const data = await response.json();
+                
+                // Hata kontrolü
+                if(data.error) {
+                    console.error("Backend Hatası:", data.error);
+                    return;
+                }
+
                 const current = data.current;
                 
+                // Tarih Bilgisini Güncelle
+                if(current.dateString) {
+                    document.getElementById('dateInfo').textContent = current.dateString;
+                }
+
                 document.getElementById('cityName').textContent = current.cityName;
                 document.getElementById('weatherSubtitle').textContent = capitalize(current.description);
                 document.getElementById('mainTemp').textContent = current.temperature.toFixed(1) + '°C';
                 document.getElementById('mainHumidity').textContent = '%' + current.humidity;
-                document.getElementById('mainWind').textContent = (current.windSpeed * 3.6).toFixed(0) + ' km/s';
+                document.getElementById('mainWind').textContent = (current.windSpeed * 3.6).toFixed(0) + ' km/s'; // m/s'den km/s'ye çeviri JS'de varsa
+                // Not: Open-Meteo direkt km/h de verebilir, C# kodunda dönüşüm yaptıysak burası doğru.
                 document.getElementById('mainPressure').textContent = current.pressure + ' hPa';
 
                 drawMGMChart(data.hourly);
@@ -349,7 +356,7 @@
                         tension: 0.4,
                         pointBackgroundColor: '#fff',
                         pointBorderColor: '#2980b9',
-                        pointRadius: 3,
+                        pointRadius: 4,
                         pointHoverRadius: 6,
                         fill: false
                     }]
@@ -388,11 +395,11 @@
                 const dayName = days[new Date(day.date).getDay()];
                 const icon = getWeatherEmoji(day.icon);
                 
-                // Verileri hazırla
+                // Veriler
                 const humidity = day.humidity ? `%${day.humidity}` : "-";
-                const wind = day.windSpeed ? (day.windSpeed * 3.6).toFixed(0) : "-";
+                const wind = day.windSpeed ? day.windSpeed.toFixed(0) : "-"; 
 
-                // Tooltip HTML'ini forecast-item'ın İÇİNE gömüyoruz
+                // HTML + TOOLTIP
                 container.innerHTML += `
                     <div class="forecast-item" onmouseenter="showTooltip(this)" onmouseleave="hideTooltip(this)">
                         
@@ -407,7 +414,7 @@
                         <div class="forecast-tooltip">
                             <div class="tooltip-header">
                                 <span>${dayName}</span>
-                                <span style="font-size:12px; font-weight:400; color:#7f8c8d">Detay</span>
+                                <span style="font-weight:400; color:#7f8c8d">Detay</span>
                             </div>
                             <div class="tooltip-body">
                                 <div class="tooltip-left">
@@ -436,14 +443,12 @@
             });
         }
 
-        // TOOLTIP GÖSTER/GİZLE FONKSİYONLARI
-        function showTooltip(element) {
-            const tooltip = element.querySelector('.forecast-tooltip');
+        function showTooltip(el) {
+            const tooltip = el.querySelector('.forecast-tooltip');
             if(tooltip) tooltip.classList.add('active');
         }
-
-        function hideTooltip(element) {
-            const tooltip = element.querySelector('.forecast-tooltip');
+        function hideTooltip(el) {
+            const tooltip = el.querySelector('.forecast-tooltip');
             if(tooltip) tooltip.classList.remove('active');
         }
 
