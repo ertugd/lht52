@@ -14,6 +14,14 @@ namespace lht52.Controllers // BURAYI KENDİ PROJE ADINLA DEĞİŞTİR
         {
             return View();
         }
+     public IActionResult GPS()
+        {
+            return View();
+        }
+     public IActionResult havadurumu()
+        {
+            return View();
+        }
 
         [HttpGet]
         public async Task<IActionResult> GetWeatherData()
