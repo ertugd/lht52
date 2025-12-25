@@ -167,7 +167,7 @@
                 <div class="modal-body p-4">
                     
                     <div class="text-center">
-                        <img src="~/images/mimari.jpeg" alt="Architecture Diagram" class="architecture-img">
+                        <img src="~/images/mimari.png" alt="Architecture Diagram" class="architecture-img">
                     </div>
 
                     <p style="margin-bottom: 20px; color:#444; font-size:14px;">
@@ -177,27 +177,40 @@
                     </p>
 
                     <ul class="feature-list">
-                        <li>
-                            <span class="layer-badge bg-iot">Layer 1: IoT & Field</span>
-                            <span class="feature-title">Data Acquisition</span>
-                            <span class="feature-desc">Sensors and GPS modules collect environmental/location data and transmit packets directly to the cloud.</span>
-                        </li>
-                        <li>
-                            <span class="layer-badge bg-cloud">Layer 2: Cloud & Data</span>
-                            <span class="feature-title">Firebase & External APIs</span>
-                            <span class="feature-desc">Firebase Realtime Database ensures sub-second latency. Open-Meteo provides weather data.</span>
-                        </li>
-                        <li>
-                            <span class="layer-badge bg-backend">Layer 3: Backend</span>
-                            <span class="feature-title">ASP.NET Core MVC</span>
-                            <span class="feature-desc">Manages routing and secure delivery of the application structure (Razor Views).</span>
-                        </li>
-                        <li>
-                            <span class="layer-badge bg-frontend">Layer 4: Frontend</span>
-                            <span class="feature-title">Client-Side Visualization</span>
-                            <span class="feature-desc">JavaScript fetches data via event-driven model (`onValue`) and renders it using Chart.js and Leaflet.js.</span>
-                        </li>
-                    </ul>
+    <li>
+        <span class="layer-badge bg-iot">Layer 1: Field & LoRaWAN Infrastructure</span>
+        <span class="feature-title">Data Acquisition & Transmission</span>
+        <span class="feature-desc">
+            <strong>LoRaWAN Sensors</strong> and GPS trackers collect data and transmit packets via Radio Frequency (RF) to 
+            <strong>SenseCAP M2 Gateways</strong> located on campus. The gateways forward encrypted packets to the 
+            <strong>ChirpStack Network Server</strong>.
+        </span>
+    </li>
+
+    <li>
+        <span class="layer-badge" style="background-color: #fbc02d; color: #000;">Layer 2: Network Server & Processing</span>
+        <span class="feature-title">ChirpStack & Decoding</span>
+        <span class="feature-desc">
+            <strong>ChirpStack</strong> manages the devices and authenticates packets. A middleware (Data Decoder) converts the raw hexadecimal payload into meaningful JSON format and pushes it to the cloud via MQTT/HTTP.
+        </span>
+    </li>
+
+    <li>
+        <span class="layer-badge bg-cloud">Layer 3: Cloud Storage</span>
+        <span class="feature-title">Firebase Realtime Database</span>
+        <span class="feature-desc">
+            Processed JSON data is stored in <strong>Firebase</strong>. This serverless database acts as the bridge between the LoRaWAN backend and the web frontend, ensuring sub-second latency.
+        </span>
+    </li>
+
+    <li>
+        <span class="layer-badge bg-backend">Layer 4: Web Application</span>
+        <span class="feature-title">ASP.NET Core & Client Visualization</span>
+        <span class="feature-desc">
+            The <strong>ASP.NET Core MVC</strong> backend serves the application structure. The client-side <strong>JavaScript</strong> connects to Firebase to visualize live data using <strong>Chart.js</strong> and <strong>Leaflet.js</strong>.
+        </span>
+    </li>
+</ul>
 
                 </div>
                 <div class="modal-footer bg-light">
