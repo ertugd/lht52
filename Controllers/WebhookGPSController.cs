@@ -2,6 +2,7 @@
 using istiklal_karacasu_lorawan.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
+using System.Globalization; // 1. BU KÜTÜPHANEYİ EKLEDİK
 
 [Route("api/[controller]")]
 [ApiController]
@@ -32,20 +33,17 @@ public class WebhookGPSController : ControllerBase
         return false;
     }
 
-    // YARDIMCI METOT: Türkiye Saatini Getir (Sunucu Linux da olsa Windows da olsa çalışır)
-    private DateTime GetTurkeyTime()
+    private DateTime GetTurkeyTime(DateTime utcDate)
     {
         try
         {
-            // Windows sunucular için ID
             var trZone = TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time");
-            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, trZone);
+            return TimeZoneInfo.ConvertTimeFromUtc(utcDate, trZone);
         }
         catch
         {
-            // Linux/Docker sunucular için ID (IANA)
             var trZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
-            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, trZone);
+            return TimeZoneInfo.ConvertTimeFromUtc(utcDate, trZone);
         }
     }
 
@@ -64,11 +62,24 @@ public class WebhookGPSController : ControllerBase
             var flatList = payload.Object.Messages.SelectMany(x => x).ToList();
             foreach (var item in flatList)
             {
-                if (item.MeasurementValue is not null && double.TryParse(item.MeasurementValue.ToString(), out double val))
+                // 2. PARSE İŞLEMİ GÜNCELLENDİ
+                // Gelen değer null değilse işlem yap
+                if (item.MeasurementValue is not null)
                 {
-                    if (item.Type == "Latitude") lat = val;
-                    if (item.Type == "Longitude") lng = val;
-                    if (item.Type == "Battery") bat = val;
+                    string valString = item.MeasurementValue.ToString();
+
+                    // Önlem: Eğer sunucu Türkçe çalışıyorsa ve gelen veri bir şekilde virgüllü geldiyse
+                    // veya tam tersi durumlar için her şeyi noktaya çevirip InvariantCulture ile parse ediyoruz.
+                    valString = valString.Replace(",", ".");
+
+                    // NumberStyles.Any ve CultureInfo.InvariantCulture kullanarak
+                    // noktanın her zaman ondalık ayracı olmasını garantiye alıyoruz.
+                    if (double.TryParse(valString, NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
+                    {
+                        if (item.Type == "Latitude") lat = val;
+                        if (item.Type == "Longitude") lng = val;
+                        if (item.Type == "Battery") bat = val;
+                    }
                 }
             }
         }
@@ -85,26 +96,29 @@ public class WebhookGPSController : ControllerBase
             lng = 0;
         }
 
-        // 3. Tarihi Türkiye Saatine Çevir
-        DateTime trTime = GetTurkeyTime();
+        DateTime incomingUtc = payload.Time == DateTime.MinValue ? DateTime.UtcNow : payload.Time.ToUniversalTime();
+        DateTime trTime = GetTurkeyTime(incomingUtc);
 
-        // 4. Modeli Oluştur
         var gpsData = new GPSModel
         {
             Latitude = lat.Value,
             Longitude = lng.Value,
             Battery = (int)bat,
             DeviceName = payload.DeviceInfo?.DeviceName ?? "Bilinmiyor",
-
-            // BURASI GÜNCELLENDİ: Artık sunucu saatini değil, TR saatini basıyoruz.
             LastUpdate = trTime.ToString("dd.MM.yyyy HH:mm:ss"),
-
             Hiz = 0,
-            Status = statusMessage
+            Status = statusMessage,
+            IsTracking = false
         };
 
         try
         {
+            var existingDevice = await _db.GetGPSAsync(payload.DeviceInfo.DevEui);
+            if (existingDevice != null)
+            {
+                gpsData.IsTracking = existingDevice.IsTracking;
+            }
+
             await _db.AddEntryGPSAsync(gpsData, payload.DeviceInfo.DevEui);
 
             if (gpsValid)

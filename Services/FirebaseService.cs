@@ -32,7 +32,6 @@ namespace istiklal_karacasu_lorawan.Services
                 .Child("telemetry")
                 .OnceAsync<TelemetryEntry>();
 
-            // Sadece istenen tarih aralığındaki verileri filtrele
             var filtered = data
                 .Select(d => d.Object)
                 .Where(e => e != null && e.Time >= from && e.Time <= to)
@@ -42,23 +41,49 @@ namespace istiklal_karacasu_lorawan.Services
             return filtered;
         }
 
-        /// Firebase'e yeni bir TelemetryEntry nesnesi ekler.
         public async Task AddEntryTelemetryAsync(TelemetryEntry entry)
         {
             if (entry == null)
-                throw new ArgumentNullException(nameof(entry));  
+                throw new ArgumentNullException(nameof(entry));
 
             await _client
                 .Child("telemetry")
                 .PostAsync(entry);
         }
 
-        public async Task AddEntryGPSAsync(GPSModel entry,string id)
-        {                  
+        // YENİ METOT: Mevcut GPS verisini (takip durumu dahil) okur
+        public async Task<GPSModel> GetGPSAsync(string id)
+        {
+            try
+            {
+                // locations/{id} altındaki objeyi çeker
+                return await _client
+                    .Child("locations")
+                    .Child(id)
+                    .OnceSingleAsync<GPSModel>();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public async Task AddEntryGPSAsync(GPSModel entry, string id)
+        {
+            // 1. Ana Tabloyu Güncelle (Mevcut Konum)
+            await _client
+                .Child("locations")
+                .Child(id)
+                .PutAsync(entry);
+
+            // 2. Eğer Takip Modu Açıksa, Geçmişe Kayıt At
+            if (entry.IsTracking)
+            {
                 await _client
-                    .Child("locations")                // Ana Tablo
-                    .Child(id)    // Cihaz ID (Benzersiz Key)
-                    .PutAsync(entry);                  // GpsModel'i gönder                         
+                    .Child("location_history") // Geçmiş verilerini ayrı tutuyoruz (overwrite riskine karşı)
+                    .Child(id)
+                    .PostAsync(entry);
+            }
         }
     }
 }
