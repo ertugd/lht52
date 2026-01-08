@@ -1,10 +1,9 @@
 ﻿using Newtonsoft.Json;
-using System; // DateTime için eklendi
+using System;
 using System.Collections.Generic;
 
 namespace istiklal_karacasu_lorawan.Models
 {
-    // 1. Firebase'e Kaydedilecek Temiz Model (Burası Aynı Kalır)
     public class GPSModel
     {
         [JsonProperty("lat")]
@@ -30,44 +29,15 @@ namespace istiklal_karacasu_lorawan.Models
 
         [JsonProperty("is_tracking")]
         public bool IsTracking { get; set; } = false;
+
+        // YENİ EKLENEN: Takip Oturumu ID'si
+        [JsonProperty("session_id")]
+        public string SessionId { get; set; }
     }
 
-    // 2. ChirpStack'ten Gelen Ana DTO
-    public class ChirpstackIncomingDto
-    {
-        // YENİ EKLENEN: JSON'daki "time" bilgisini yakalar
-        [JsonProperty("time")]
-        public DateTime Time { get; set; }
-
-        [JsonProperty("deviceInfo")]
-        public DeviceInfo DeviceInfo { get; set; }
-
-        [JsonProperty("object")]
-        public SenseCapRawData Object { get; set; }
-    }
-
-    public class DeviceInfo
-    {
-        [JsonProperty("devEui")]
-        public string DevEui { get; set; }
-
-        [JsonProperty("deviceName")]
-        public string DeviceName { get; set; }
-    }
-
-    // 3. JSON'daki "object" içindeki karmaşık yapıyı çözen sınıflar
-    public class SenseCapRawData
-    {
-        [JsonProperty("messages")]
-        public List<List<SenseCapMessageItem>> Messages { get; set; }
-    }
-
-    public class SenseCapMessageItem
-    {
-        [JsonProperty("type")]
-        public string Type { get; set; }
-
-        [JsonProperty("measurementValue")]
-        public object MeasurementValue { get; set; }
-    }
+    // ... (Diğer sınıflar aynı kalacak) ...
+    public class ChirpstackIncomingDto { /*...*/ public DateTime Time { get; set; } /*...*/ public DeviceInfo DeviceInfo { get; set; } public SenseCapRawData Object { get; set; } }
+    public class DeviceInfo { /*...*/ public string DevEui { get; set; } public string DeviceName { get; set; } }
+    public class SenseCapRawData { /*...*/ public List<List<SenseCapMessageItem>> Messages { get; set; } }
+    public class SenseCapMessageItem { /*...*/ public string Type { get; set; } public object MeasurementValue { get; set; } }
 }

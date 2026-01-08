@@ -439,7 +439,7 @@
         const tempHistoryChart = createHistoryChart(tempCtx, "Sıcaklık", "#ff6b6b");
         const humHistoryChart = createHistoryChart(humCtx, "Nem", "#4dabf7");
 
-        telemetryRef.limitToLast(288).on("child_added", snapshot => {
+        telemetryRef.limitToLast(144).on("child_added", snapshot => {
             const entry = snapshot.val(); if(!entry || !entry.Time) return;
             const date = new Date(entry.Time);
             const label = date.getHours().toString().padStart(2,'0') + ':' + date.getMinutes().toString().padStart(2,'0');

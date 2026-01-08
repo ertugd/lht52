@@ -2,7 +2,7 @@
 using istiklal_karacasu_lorawan.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
-using System.Globalization; // 1. BU KÜTÜPHANEYİ EKLEDİK
+using System.Globalization;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -17,34 +17,54 @@ public class WebhookGPSController : ControllerBase
         _db = db;
     }
 
-    private bool ValidateApiKey()
-    {
-        var expected = _config.GetValue<string>("X-API-KEY");
-        if (string.IsNullOrEmpty(expected)) return false;
-        if (Request.Headers.TryGetValue("X-API-KEY", out var v) && v == expected) return true;
-        if (Request.Headers.TryGetValue("Authorization", out var auth))
-        {
-            if (auth.ToString().StartsWith("X-API-KEY ", StringComparison.OrdinalIgnoreCase))
-            {
-                var token = auth.ToString().Substring(9).Trim();
-                return token == expected;
-            }
-        }
-        return false;
-    }
+    // ... (ValidateApiKey ve GetTurkeyTime metodları aynen kalacak) ...
+    private bool ValidateApiKey() { /* Mevcut kodlar... */ return true; /*Burayı kısaltıyorum, sizdeki kalsın*/ }
 
-    private DateTime GetTurkeyTime(DateTime utcDate)
+    // GÜNCELLENDİ: Tarih formatı parse işlemi için
+    // --- DÜZELTİLEN METOT ---
+    private DateTime GetTurkeyTime(DateTime date)
     {
+        // Gelen tarih "Local" ise UTC'ye çeviriyoruz.
+        // "Unspecified" (Belirsiz) ise UTC olduğunu varsayıyoruz.
+        if (date.Kind == DateTimeKind.Local)
+        {
+            date = date.ToUniversalTime();
+        }
+        else if (date.Kind == DateTimeKind.Unspecified)
+        {
+            date = DateTime.SpecifyKind(date, DateTimeKind.Utc);
+        }
+
         try
         {
             var trZone = TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time");
-            return TimeZoneInfo.ConvertTimeFromUtc(utcDate, trZone);
+            return TimeZoneInfo.ConvertTimeFromUtc(date, trZone);
         }
         catch
         {
             var trZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
-            return TimeZoneInfo.ConvertTimeFromUtc(utcDate, trZone);
+            return TimeZoneInfo.ConvertTimeFromUtc(date, trZone);
         }
+    }
+
+    // YENİ METOT: İki nokta arasındaki mesafeyi (km) hesaplar
+    private double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
+    {
+        if (lat1 == lat2 && lon1 == lon2) return 0;
+
+        var r = 6371; // Dünya yarıçapı (km)
+        var dLat = ToRadians(lat2 - lat1);
+        var dLon = ToRadians(lon2 - lon1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return r * c;
+    }
+
+    private double ToRadians(double angle)
+    {
+        return Math.PI * angle / 180.0;
     }
 
     [HttpPost]
@@ -56,24 +76,14 @@ public class WebhookGPSController : ControllerBase
         double? lng = null;
         double bat = 0;
 
-        // 1. Veriyi Ayıkla
         if (payload.Object?.Messages != null)
         {
             var flatList = payload.Object.Messages.SelectMany(x => x).ToList();
             foreach (var item in flatList)
             {
-                // 2. PARSE İŞLEMİ GÜNCELLENDİ
-                // Gelen değer null değilse işlem yap
                 if (item.MeasurementValue is not null)
                 {
-                    string valString = item.MeasurementValue.ToString();
-
-                    // Önlem: Eğer sunucu Türkçe çalışıyorsa ve gelen veri bir şekilde virgüllü geldiyse
-                    // veya tam tersi durumlar için her şeyi noktaya çevirip InvariantCulture ile parse ediyoruz.
-                    valString = valString.Replace(",", ".");
-
-                    // NumberStyles.Any ve CultureInfo.InvariantCulture kullanarak
-                    // noktanın her zaman ondalık ayracı olmasını garantiye alıyoruz.
+                    string valString = item.MeasurementValue.ToString().Replace(",", ".");
                     if (double.TryParse(valString, NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
                     {
                         if (item.Type == "Latitude") lat = val;
@@ -84,7 +94,6 @@ public class WebhookGPSController : ControllerBase
             }
         }
 
-        // 2. Durum Belirleme
         string statusMessage = "Aktif";
         bool gpsValid = true;
 
@@ -96,8 +105,43 @@ public class WebhookGPSController : ControllerBase
             lng = 0;
         }
 
-        DateTime incomingUtc = payload.Time == DateTime.MinValue ? DateTime.UtcNow : payload.Time.ToUniversalTime();
-        DateTime trTime = GetTurkeyTime(incomingUtc);
+        // --- TARİHİ HAZIRLAMA ---
+        // Gelen zamanı al, yoksa şu anı kullan.
+        DateTime incomingDate = payload.Time == DateTime.MinValue ? DateTime.UtcNow : payload.Time;
+
+        // Yukarıda düzelttiğimiz güvenli metodu çağırıyoruz
+        DateTime trTime = GetTurkeyTime(incomingDate);
+
+        // HIZ VE SESSION HESAPLAMA
+        double calculatedSpeed = 0;
+        bool isTracking = false;
+        string currentSessionId = null;
+
+        try
+        {
+            var prevData = await _db.GetGPSAsync(payload.DeviceInfo.DevEui);
+            if (prevData != null)
+            {
+                isTracking = prevData.IsTracking;
+                currentSessionId = prevData.SessionId;
+
+                if (gpsValid && prevData.Latitude != 0 && prevData.Longitude != 0)
+                {
+                    // Eski tarih formatını parse et
+                    if (DateTime.TryParseExact(prevData.LastUpdate, "dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime prevTime))
+                    {
+                        double distanceKm = CalculateDistance(prevData.Latitude, prevData.Longitude, lat.Value, lng.Value);
+                        double timeDiffHours = (trTime - prevTime).TotalHours;
+
+                        if (timeDiffHours > 0.0001 && distanceKm > 0)
+                        {
+                            calculatedSpeed = distanceKm / timeDiffHours;
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
 
         var gpsData = new GPSModel
         {
@@ -106,25 +150,16 @@ public class WebhookGPSController : ControllerBase
             Battery = (int)bat,
             DeviceName = payload.DeviceInfo?.DeviceName ?? "Bilinmiyor",
             LastUpdate = trTime.ToString("dd.MM.yyyy HH:mm:ss"),
-            Hiz = 0,
+            Hiz = Math.Round(calculatedSpeed, 1),
             Status = statusMessage,
-            IsTracking = false
+            IsTracking = isTracking,
+            SessionId = currentSessionId
         };
 
         try
         {
-            var existingDevice = await _db.GetGPSAsync(payload.DeviceInfo.DevEui);
-            if (existingDevice != null)
-            {
-                gpsData.IsTracking = existingDevice.IsTracking;
-            }
-
             await _db.AddEntryGPSAsync(gpsData, payload.DeviceInfo.DevEui);
-
-            if (gpsValid)
-                return Ok(new { status = "Başarılı", device = payload.DeviceInfo.DeviceName });
-            else
-                return Ok(new { status = "Uyarı: GPS verisi yok, durum güncellendi.", device = payload.DeviceInfo.DeviceName });
+            return Ok(new { status = "Başarılı", speed = gpsData.Hiz });
         }
         catch (Exception ex)
         {

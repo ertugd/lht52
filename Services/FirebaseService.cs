@@ -51,16 +51,11 @@ namespace istiklal_karacasu_lorawan.Services
                 .PostAsync(entry);
         }
 
-        // YENİ METOT: Mevcut GPS verisini (takip durumu dahil) okur
         public async Task<GPSModel> GetGPSAsync(string id)
         {
             try
             {
-                // locations/{id} altındaki objeyi çeker
-                return await _client
-                    .Child("locations")
-                    .Child(id)
-                    .OnceSingleAsync<GPSModel>();
+                return await _client.Child("locations").Child(id).OnceSingleAsync<GPSModel>();
             }
             catch
             {
@@ -70,19 +65,47 @@ namespace istiklal_karacasu_lorawan.Services
 
         public async Task AddEntryGPSAsync(GPSModel entry, string id)
         {
-            // 1. Ana Tabloyu Güncelle (Mevcut Konum)
+            await _client.Child("locations").Child(id).PutAsync(entry);
+
+            if (entry.IsTracking)
+            {
+                await _client.Child("location_history").Child(id).PostAsync(entry);
+            }
+        }
+
+        // --- GÜNCELLENEN METOT ---
+        public async Task UpdateTrackingAsync(string id, bool status, string sessionId)
+        {
+            if (string.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
+
+            // 1. Takip Durumunu Güncelle
             await _client
                 .Child("locations")
                 .Child(id)
-                .PutAsync(entry);
+                .Child("is_tracking")
+                .PutAsync(status);
 
-            // 2. Eğer Takip Modu Açıksa, Geçmişe Kayıt At
-            if (entry.IsTracking)
+            // 2. Session ID ve Hız Yönetimi
+            var locationNode = _client.Child("locations").Child(id);
+
+            if (status && !string.IsNullOrEmpty(sessionId))
             {
-                await _client
-                    .Child("location_history") // Geçmiş verilerini ayrı tutuyoruz (overwrite riskine karşı)
-                    .Child(id)
-                    .PostAsync(entry);
+                // Takip başladığında:
+                // A. Yeni Session ID'yi yaz (Tırnaklı string olarak)
+                string jsonString = "\"" + sessionId + "\"";
+                await locationNode.Child("session_id").PutAsync(jsonString);
+
+                // B. HIZI SIFIRLA (İstediğiniz Özellik)
+                // Takip başladığı an eski hız verisi silinir ve 0 yapılır.
+                await locationNode.Child("speed").PutAsync(0);
+            }
+            else
+            {
+                // Takip bittiyse SessionID'yi sil
+                await locationNode.Child("session_id").DeleteAsync();
+
+                // İsteğe bağlı: Takip bitince de hızı sıfırlamak isterseniz burayı açabilirsiniz:
+                 await locationNode.Child("speed").PutAsync(0);
             }
         }
     }
