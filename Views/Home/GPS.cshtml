@@ -2,11 +2,11 @@
     Layout = null;
 }
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>İstiklal LoRaWAN | GPS Takip</title>
+    <title>İstiklal LoRaWAN | GPS Tracking</title>
     
     <!-- Bootstrap 5: Sayfadaki görsel tasarım için (kutu yapıları, butonlar vb.) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -44,12 +44,12 @@
             <!-- A. Cihazların Listelendiği Görünüm -->
             <div id="view-devices" style="display:flex; flex-direction:column; height:100%;">
                 <div class="sidebar-header">
-                    <i class="fas fa-satellite-dish text-primary"></i> Cihaz Listesi (<span id="device-count">0</span>)
+                    <i class="fas fa-satellite-dish text-primary"></i> Device List (<span id="device-count">0</span>)
                 </div>
                 <!-- Cihaz kutucukları buraya Javascript ile eklenecek -->
                 <div class="device-list-container" id="device-list">
                     <div class="text-center mt-5 text-muted">
-                        <p style="font-size:12px">Veriler yükleniyor...</p>
+                        <p style="font-size:12px">Loading data...</p>
                     </div>
                 </div>
             </div>
@@ -62,13 +62,13 @@
                         <button class="btn btn-sm btn-outline-secondary me-2 border-0" onclick="closeHistory()">
                             <i class="fas fa-arrow-left"></i>
                         </button>
-                        <span id="history-title-device" style="font-size:13px; font-weight:700">Geçmiş</span>
+                        <span id="history-title-device" style="font-size:13px; font-weight:700">History</span>
                     </div>
                 </div>
                 <div class="px-3 py-2 bg-white border-bottom text-center">
                     <!-- Rotayı Kaydetmeyi Başlatma/Durdurma Butonu -->
                     <button id="toggle-record-btn" class="btn btn-sm btn-outline-primary w-100" style="font-size:11px">
-                        <i class="fas fa-play"></i> Kaydı Başlat
+                        <i class="fas fa-play"></i> Start Recording
                     </button>
                 </div>
                 <!-- Geçmiş Rota (Oturum) Kayıtları Buraya Eklenecek -->
@@ -124,7 +124,7 @@
                     try {
                         updateHistoryUI(currentHistoryDevice, devices[currentHistoryDevice]);
                     } catch (e) {
-                        console.error("Geçmiş güncellenirken hata:", e);
+                        console.error("Error updating history:", e);
                     }
                 }
             }
@@ -156,8 +156,8 @@
                         <span class="text-success fw-bold" style="font-size:11px"><i class="fas fa-battery-full"></i> ${dev.info.battery}%</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="badge ${isActive ? 'bg-success' : 'bg-danger'}" style="font-size:10px">${isActive ? 'Aktif' : 'Pasif'}</span>
-                        <small class="text-muted" style="font-size:10px">${new Date(dev.info.last_seen).toLocaleTimeString()}</small>
+                        <span class="badge ${isActive ? 'bg-success' : 'bg-danger'}" style="font-size:10px">${isActive ? 'Active' : 'Inactive'}</span>
+                        <small class="text-muted" style="font-size:10px">${new Date(dev.info.last_seen).toLocaleTimeString('en-US')}</small>
                     </div>
                 `;
                 // Bu kutuya tıklanınca ne olacağını belirle (Cihazı seç ve haritada oraya git)
@@ -183,16 +183,16 @@
                 const popupContent = `
                     <div style="text-align:center; font-family:'Inter',sans-serif;">
                         <strong>${dev.info.name}</strong><br>
-                        <small class="text-muted">${new Date(dev.info.last_seen).toLocaleString()}</small>
+                        <small class="text-muted">${new Date(dev.info.last_seen).toLocaleString('en-US')}</small>
                         <hr style="margin:8px 0">
                         <div class="d-grid gap-1">
                             <!-- Kaydı Başlat/Durdur Butonu -->
                             <button class="btn btn-sm ${isTracking ? 'btn-danger' : 'btn-success'}" style="font-size:11px" onclick="toggleRecording('${id}', ${!isTracking})">
-                                <i class="fas ${isTracking ? 'fa-stop' : 'fa-play'}"></i> ${isTracking ? 'Kaydı Durdur' : 'Kaydı Başlat'}
+                                <i class="fas ${isTracking ? 'fa-stop' : 'fa-play'}"></i> ${isTracking ? 'Stop Recording' : 'Start Recording'}
                             </button>
                             <!-- Geçmişi Gör Butonu -->
                             <button class="btn btn-sm btn-primary" style="font-size:11px" onclick="openHistoryView('${id}')">
-                                <i class="fas fa-history"></i> Geçmişi Gör
+                                <i class="fas fa-history"></i> View History
                             </button>
                         </div>
                     </div>
@@ -234,7 +234,7 @@
         // --- GEÇMİŞ MENÜSÜNÜN İÇİNİ DOLDURMA ---
         function updateHistoryUI(id, dev) {
             if (!dev) return;
-            document.getElementById('history-title-device').innerText = dev.info.name + " Geçmişi"; // Üst başlığı değiştir
+            document.getElementById('history-title-device').innerText = dev.info.name + " History"; // Üst başlığı değiştir
             
             // Cihaz o an kayıt altında mı kontrol et
             const isRecording = dev.settings && String(dev.settings.record_path) === 'true';
@@ -242,7 +242,7 @@
             
             // Üstteki mavi "Kaydı Başlat / Durdur" butonunun rengini ve yazısını ayarla
             const btn = document.getElementById('toggle-record-btn');
-            btn.innerHTML = isRecording ? '<i class="fas fa-stop"></i> Kaydı Durdur' : '<i class="fas fa-play"></i> Kaydı Başlat';
+            btn.innerHTML = isRecording ? '<i class="fas fa-stop"></i> Stop Recording' : '<i class="fas fa-play"></i> Start Recording';
             btn.className = isRecording ? 'btn btn-sm btn-danger w-100' : 'btn btn-sm btn-outline-primary w-100';
             btn.onclick = () => toggleRecording(id, !isRecording);
 
@@ -276,7 +276,7 @@
             container.innerHTML = '';
             // Eğer hiç geçmiş yoksa uyar
             if (!history) {
-                container.innerHTML = '<div class="text-center p-4 text-muted" style="font-size:12px">Kayıt bulunamadı.</div>';
+                container.innerHTML = '<div class="text-center p-4 text-muted" style="font-size:12px">No records found.</div>';
                 return;
             }
 
@@ -284,7 +284,7 @@
             const sessionIds = Object.keys(history).reverse();
 
             if (sessionIds.length === 0) {
-                container.innerHTML = '<div class="text-center p-4 text-muted" style="font-size:12px">Oturum kaydı bulunamadı.</div>';
+                container.innerHTML = '<div class="text-center p-4 text-muted" style="font-size:12px">No session records found.</div>';
                 return;
             }
 
@@ -300,8 +300,8 @@
                 // HESAPLAMALAR: Başlangıç Saati, Bitiş Saati
                 const startTimeMs = new Date(records[0].timestamp).getTime();
                 const endTimeMs = new Date(records[records.length-1].timestamp).getTime();
-                const startTime = new Date(startTimeMs).toLocaleString();
-                const endTime = new Date(endTimeMs).toLocaleTimeString();
+                const startTime = new Date(startTimeMs).toLocaleString('en-US');
+                const endTime = new Date(endTimeMs).toLocaleTimeString('en-US');
                 
                 // HESAPLAMALAR: Toplam Alınan Mesafe
                 let totalDistance = 0;
@@ -333,9 +333,9 @@
                     const m = Math.floor((totalSec % 3600) / 60);
                     const s = totalSec % 60;
                     let parts = [];
-                    if (h > 0) parts.push(`${h} sa`);
-                    if (m > 0 || h > 0) parts.push(`${m} dk`);
-                    parts.push(`${s} sn`);
+                    if (h > 0) parts.push(`${h} h`);
+                    if (m > 0 || h > 0) parts.push(`${m} m`);
+                    parts.push(`${s} s`);
                     durationStr = parts.join(' ');
                 }
                 
@@ -359,17 +359,17 @@
                 div.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <div style="font-size:12px; font-weight:600; color:#333;">
-                            <i class="fas fa-route text-primary me-1"></i> Başlangıç: ${startTime}
+                            <i class="fas fa-route text-primary me-1"></i> Start: ${startTime}
                         </div>
-                        <span class="badge bg-secondary" style="font-size:10px">${records.length} Nokta</span>
+                        <span class="badge bg-secondary" style="font-size:10px">${records.length} Points</span>
                     </div>
                     <div style="font-size:11px; color:#666; margin-left: 20px; margin-bottom: 4px;">
-                        Bitiş: ${endTime}
+                        End: ${endTime}
                     </div>
                     <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top" style="font-size:11px; color:#444;">
-                        <div title="Toplam Mesafe"><i class="fas fa-ruler text-secondary"></i> ${distanceStr}</div>
-                        <div title="Geçen Süre"><i class="fas fa-clock text-secondary"></i> ${durationStr}</div>
-                        <div title="Ortalama Hız"><i class="fas fa-tachometer-alt text-secondary"></i> ${avgSpeed.toFixed(1)} km/sa</div>
+                        <div title="Total Distance"><i class="fas fa-ruler text-secondary"></i> ${distanceStr}</div>
+                        <div title="Duration"><i class="fas fa-clock text-secondary"></i> ${durationStr}</div>
+                        <div title="Average Speed"><i class="fas fa-tachometer-alt text-secondary"></i> ${avgSpeed.toFixed(1)} km/h</div>
                     </div>
                 `;
                 
@@ -411,12 +411,12 @@
 
             // İlk konuma yeşil bayrağı yerleştir
             startMarker = L.marker(latlngs[0], {icon: startIcon}).addTo(map)
-                .bindPopup(`<div style="text-align:center; font-family:'Inter',sans-serif;"><b>Başlangıç</b><br><small>${new Date(records[0].timestamp).toLocaleString()}</small></div>`);
+                .bindPopup(`<div style="text-align:center; font-family:'Inter',sans-serif;"><b>Start</b><br><small>${new Date(records[0].timestamp).toLocaleString('en-US')}</small></div>`);
                 
             // Eğer birden fazla nokta varsa, en sonuncu konuma da kırmızı bayrağı yerleştir
             if (latlngs.length > 1) {
                 endMarker = L.marker(latlngs[latlngs.length - 1], {icon: endIcon}).addTo(map)
-                    .bindPopup(`<div style="text-align:center; font-family:'Inter',sans-serif;"><b>Bitiş / Son Konum</b><br><small>${new Date(records[records.length - 1].timestamp).toLocaleString()}</small></div>`);
+                    .bindPopup(`<div style="text-align:center; font-family:'Inter',sans-serif;"><b>End / Last Position</b><br><small>${new Date(records[records.length - 1].timestamp).toLocaleString('en-US')}</small></div>`);
             }
             
             // Haritayı kamerasıyla bu çizginin tam ortasına getir ve sığacak kadar uzaklaştır (fitBounds)
@@ -462,7 +462,7 @@
             }).catch(err => {
                 // Veritabanında izin hatası falan çıkarsa uyarı ver
                 console.error("Firebase update error:", err);
-                alert("Kayıt durumu güncellenemedi. Lütfen Firebase yetkilerinizi kontrol edin.");
+                alert("Recording status could not be updated. Please check your Firebase permissions.");
             });
         };
     </script>
