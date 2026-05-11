@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 
@@ -35,9 +35,4 @@ namespace istiklal_karacasu_lorawan.Models
         public string SessionId { get; set; }
     }
 
-    // ... (Diğer sınıflar aynı kalacak) ...
-    public class ChirpstackIncomingDto { /*...*/ public DateTime Time { get; set; } /*...*/ public DeviceInfo DeviceInfo { get; set; } public SenseCapRawData Object { get; set; } }
-    public class DeviceInfo { /*...*/ public string DevEui { get; set; } public string DeviceName { get; set; } }
-    public class SenseCapRawData { /*...*/ public List<List<SenseCapMessageItem>> Messages { get; set; } }
-    public class SenseCapMessageItem { /*...*/ public string Type { get; set; } public object MeasurementValue { get; set; } }
 }

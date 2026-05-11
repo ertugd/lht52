@@ -1,9 +1,10 @@
-﻿using Auth0.AspNetCore.Authentication;
+using Auth0.AspNetCore.Authentication;
 using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using istiklal_karacasu_lorawan.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
+using Newtonsoft.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 // WeatherService'i ekle
@@ -18,7 +19,11 @@ else
     builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 }
 
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddNewtonsoftJson(options =>
+    {
+        options.SerializerSettings.ContractResolver = new DefaultContractResolver();
+    });
 
 builder.Services.AddCors(options =>
 {
@@ -46,6 +51,7 @@ builder.Services.AddCors(options =>
 });*/
 
 builder.Services.AddSingleton<FirebaseService>();
+builder.Services.AddSingleton<IFirebaseService>(sp => sp.GetRequiredService<FirebaseService>());
 
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<Auth0ManagementService>();

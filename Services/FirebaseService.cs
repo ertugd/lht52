@@ -1,4 +1,4 @@
-﻿using Firebase.Database;
+using Firebase.Database;
 using Firebase.Database.Query;
 using istiklal_karacasu_lorawan.Models;
 using Microsoft.Extensions.Configuration;
@@ -9,7 +9,15 @@ using System.Threading.Tasks;
 
 namespace istiklal_karacasu_lorawan.Services
 {
-    public class FirebaseService
+    // Bu arayüz (interface), Firebase servisimizin yapabileceği işlerin (fonksiyonların) bir sözleşmesidir.
+    public interface IFirebaseService
+    {
+        Task SaveTempHumAsync(string devEui, string name, double? tempInner, double? tempOuter, double? humidity, double? battery, string timestamp);
+        Task SaveGpsAsync(string devEui, string name, double lat, double lng, double? battery, string timestamp);
+        Task SetRecordingAsync(string devEui, bool enabled);
+    }
+
+    public class FirebaseService : IFirebaseService
     {
         private readonly FirebaseClient _client;
         public string BaseUrl { get; }
@@ -17,14 +25,82 @@ namespace istiklal_karacasu_lorawan.Services
 
         public FirebaseService(IConfiguration config)
         {
-            BaseUrl = config["Firebase:DatabaseUrl"];
-            Secret = config["Firebase:DatabaseSecret"];
+            BaseUrl = config["Firebase:DatabaseUrl"] ?? "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app";
+            Secret = config["Firebase:DatabaseSecret"] ?? config["Firebase:AuthSecret"];
+
+            if (string.IsNullOrEmpty(Secret))
+            {
+                throw new ArgumentException("Firebase:DatabaseSecret veya Firebase:AuthSecret ayarı eksik.");
+            }
 
             _client = new FirebaseClient(
                 BaseUrl,
                 new FirebaseOptions { AuthTokenAsyncFactory = () => Task.FromResult(Secret) }
             );
         }
+
+        // --- REFERANS PROJEDEN GELEN METOTLAR (YENİ YAPI) ---
+
+        public async Task SaveTempHumAsync(string devEui, string name, double? tempInner, double? tempOuter, double? humidity, double? battery, string timestamp)
+        {
+            var deviceRef = _client.Child("devices").Child(devEui);
+            var info = new
+            {
+                name = name,
+                type = "temp-hum",
+                last_seen = timestamp,
+                battery = battery ?? 100
+            };
+            await deviceRef.Child("info").PatchAsync(info);
+
+            var data = new
+            {
+                temp_inner = tempInner,
+                temp_outer = tempOuter,
+                humidity = humidity,
+                timestamp = timestamp
+            };
+            await deviceRef.Child("latest").PutAsync(data);
+            await deviceRef.Child("history").PostAsync(data);
+        }
+
+        public async Task SaveGpsAsync(string devEui, string name, double lat, double lng, double? battery, string timestamp)
+        {
+            var deviceRef = _client.Child("devices").Child(devEui);
+            var info = new
+            {
+                name = name,
+                type = "gps",
+                last_seen = timestamp,
+                battery = battery ?? 100
+            };
+            await deviceRef.Child("info").PatchAsync(info);
+
+            var data = new
+            {
+                lat = lat,
+                lng = lng,
+                timestamp = timestamp
+            };
+            await deviceRef.Child("latest").PutAsync(data);
+
+            var settings = await deviceRef.Child("settings").OnceSingleAsync<IDictionary<string, object>>();
+            if (settings != null && settings.ContainsKey("record_path") && Convert.ToBoolean(settings["record_path"]))
+            {
+                string sessionId = settings.ContainsKey("current_session_id") ? settings["current_session_id"].ToString() : "default_session";
+                await deviceRef.Child("history").Child(sessionId).PostAsync(data);
+            }
+        }
+
+        public async Task SetRecordingAsync(string devEui, bool enabled)
+        {
+            await _client.Child("devices").Child(devEui).Child("settings").PatchAsync(new
+            {
+                record_path = enabled
+            });
+        }
+
+        // --- MEVCUT METOTLAR (ESKİ PANEL UYUMLULUĞU İÇİN) ---
 
         public async Task<List<TelemetryEntry>> GetEntriesAsync(DateTime from, DateTime to)
         {
@@ -73,39 +149,28 @@ namespace istiklal_karacasu_lorawan.Services
             }
         }
 
-        // --- GÜNCELLENEN METOT ---
         public async Task UpdateTrackingAsync(string id, bool status, string sessionId)
         {
             if (string.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
 
-            // 1. Takip Durumunu Güncelle
             await _client
                 .Child("locations")
                 .Child(id)
                 .Child("is_tracking")
                 .PutAsync(status);
 
-            // 2. Session ID ve Hız Yönetimi
             var locationNode = _client.Child("locations").Child(id);
 
             if (status && !string.IsNullOrEmpty(sessionId))
             {
-                // Takip başladığında:
-                // A. Yeni Session ID'yi yaz (Tırnaklı string olarak)
                 string jsonString = "\"" + sessionId + "\"";
                 await locationNode.Child("session_id").PutAsync(jsonString);
-
-                // B. HIZI SIFIRLA (İstediğiniz Özellik)
-                // Takip başladığı an eski hız verisi silinir ve 0 yapılır.
                 await locationNode.Child("speed").PutAsync(0);
             }
             else
             {
-                // Takip bittiyse SessionID'yi sil
                 await locationNode.Child("session_id").DeleteAsync();
-
-                // İsteğe bağlı: Takip bitince de hızı sıfırlamak isterseniz burayı açabilirsiniz:
-                 await locationNode.Child("speed").PutAsync(0);
+                await locationNode.Child("speed").PutAsync(0);
             }
         }
     }

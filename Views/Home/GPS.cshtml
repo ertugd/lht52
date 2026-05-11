@@ -1,762 +1,470 @@
-﻿@{
-    ViewData["Title"] = "Real-Time Tracking";
-    Layout = "_Layout";
+@{
+    Layout = null;
 }
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İstiklal LoRaWAN | GPS Takip</title>
+    
+    <!-- Bootstrap 5: Sayfadaki görsel tasarım için (kutu yapıları, butonlar vb.) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome: İkonlar için -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter yazı tipi -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="~/assets/css/style.css">
+    
+    <!-- Firebase SDK: Veritabanına bağlanmak için -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- Leaflet JS: GPS haritasını ve üzerindeki noktaları çizmemizi sağlayan kütüphane -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+    <!-- Üst Menü -->
+    <nav>
+        <a href="/Home/Index" class="navbar-brand">İstiklal LoRaWAN</a>
+        <div class="nav-links">
+            <a href="/Home/havadurumu"><i class="fas fa-thermometer-half"></i> Temp & Humidity</a>
+        </div>
+    </nav>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-<style>
-    /* --- LAYOUT OVERRIDES --- */
-    footer {
-        display: none !important;
-    }
-
-    .container-fluid {
-        padding: 0 !important;
-        margin: 0 !important;
-        height: 100%;
-        width: 100%;
-    }
-
-    main {
-        padding-bottom: 0 !important;
-        height: calc(100vh - 56px);
-        display: flex;
-        flex-direction: column;
-    }
-
-    /* --- DASHBOARD STYLES --- */
-    .dashboard-container {
-        flex-grow: 1;
-        display: flex;
-        position: relative;
-        overflow: hidden;
-        height: 100%;
-    }
-
-    .sidebar {
-        width: 320px;
-        background: #fff;
-        border-right: 1px solid #dee2e6;
-        display: flex;
-        flex-direction: column;
-        z-index: 2000;
-        box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-        transition: transform 0.3s ease;
-    }
-
-    .sidebar-header {
-        padding: 12px 15px;
-        background: #fff;
-        border-bottom: 1px solid #eee;
-        color: #2c3e50;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .sidebar-title {
-        font-size: 14px;
-        font-weight: 700;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .device-list-container {
-        flex-grow: 1;
-        overflow-y: auto;
-        padding: 10px;
-        background-color: #f8f9fa;
-    }
-
-    #map {
-        flex-grow: 1;
-        height: 100%;
-        z-index: 1;
-    }
-
-    /* Device Cards */
-    .device-card {
-        background: white;
-        padding: 12px;
-        margin-bottom: 10px;
-        border-radius: 8px;
-        border-left: 4px solid #ccc;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-        cursor: pointer;
-        transition: all 0.2s;
-        border: 1px solid #e1e4e8;
-        border-left-width: 4px;
-    }
-
-        .device-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-        }
-
-    .border-active {
-        border-left-color: #28a745 !important;
-    }
-
-    .border-error {
-        border-left-color: #dc3545 !important;
-    }
-
-    .status-badge {
-        font-size: 10px;
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-weight: 600;
-    }
-
-    .status-ok {
-        background-color: #d1e7dd;
-        color: #0f5132;
-    }
-
-    .status-err {
-        background-color: #f8d7da;
-        color: #842029;
-    }
-
-    /* History Cards */
-    .history-card:hover {
-        background-color: #e9ecef;
-    }
-
-    .history-active {
-        background-color: #e7f1ff;
-        border-left-color: #0d6efd !important;
-    }
-
-    /* Navbar Toggle Button Style */
-    #navbar-toggle-btn {
-        margin-right: 15px;
-        color: rgba(255,255,255,0.8);
-        border: 1px solid rgba(255,255,255,0.2);
-        padding: 4px 8px;
-        border-radius: 4px;
-        background: transparent;
-        cursor: pointer;
-        display: none;
-    }
-
-        #navbar-toggle-btn:hover {
-            color: #fff;
-            border-color: #fff;
-        }
-
-    @@media (max-width: 768px) {
-        .sidebar {
-            position: absolute;
-            height: 100%;
-            width: 85%;
-            transform: translateX(-100%);
-            top: 0;
-            left: 0;
-        }
-
-            .sidebar.active {
-                transform: translateX(0);
-            }
-
-        #navbar-toggle-btn {
-            display: inline-block !important;
-        }
-    }
-</style>
-
-<button id="navbar-toggle-btn" onclick="window.toggleSidebar()">
-    <i class="fas fa-bars"></i>
-</button>
-
-<div class="dashboard-container">
-    <div class="sidebar" id="sidebar">
-        <div id="view-devices" style="display:flex; flex-direction:column; height:100%;">
-            <div class="sidebar-header">
-                <h5 class="sidebar-title"><i class="fas fa-satellite-dish text-primary"></i> Device List (<span id="device-count">0</span>)</h5>
-                <button class="btn btn-sm btn-light d-md-none" onclick="window.toggleSidebar()"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="px-3 py-2 bg-white border-bottom text-center">
-                <small id="connection-status" class="text-muted" style="font-size:11px">Connecting...</small>
-            </div>
-            <div id="device-list" class="device-list-container">
-                <div class="text-center mt-5 text-muted">
-                    <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
-                    <p class="mt-2" style="font-size:12px">Loading data...</p>
+    <!-- Asıl İçerik Alanı -->
+    <div class="dashboard-container">
+        <!-- 1. BÖLÜM: Sol Taraftaki Yan Menü (Sidebar) -->
+        <div class="sidebar">
+            
+            <!-- A. Cihazların Listelendiği Görünüm -->
+            <div id="view-devices" style="display:flex; flex-direction:column; height:100%;">
+                <div class="sidebar-header">
+                    <i class="fas fa-satellite-dish text-primary"></i> Cihaz Listesi (<span id="device-count">0</span>)
+                </div>
+                <!-- Cihaz kutucukları buraya Javascript ile eklenecek -->
+                <div class="device-list-container" id="device-list">
+                    <div class="text-center mt-5 text-muted">
+                        <p style="font-size:12px">Veriler yükleniyor...</p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div id="view-history" style="display:none; flex-direction:column; height:100%; background:#f8f9fa;">
-            <div class="sidebar-header bg-light d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center">
-                    <button class="btn btn-sm btn-outline-secondary me-2 border-0" onclick="window.closeHistory()">
-                        <i class="fas fa-arrow-left"></i>
+            <!-- B. Bir Cihazın Geçmişinin (Rotalarının) Gösterildiği Görünüm (Başlangıçta Gizli) -->
+            <div id="view-history" style="display:none; flex-direction:column; height:100%; background:#f8f9fa;">
+                <div class="sidebar-header bg-light d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <!-- Geri Dön Butonu -->
+                        <button class="btn btn-sm btn-outline-secondary me-2 border-0" onclick="closeHistory()">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <span id="history-title-device" style="font-size:13px; font-weight:700">Geçmiş</span>
+                    </div>
+                </div>
+                <div class="px-3 py-2 bg-white border-bottom text-center">
+                    <!-- Rotayı Kaydetmeyi Başlatma/Durdurma Butonu -->
+                    <button id="toggle-record-btn" class="btn btn-sm btn-outline-primary w-100" style="font-size:11px">
+                        <i class="fas fa-play"></i> Kaydı Başlat
                     </button>
-                    <span id="history-title-device" style="font-size:13px; font-weight:700">History</span>
                 </div>
-                <span id="history-session-count" class="badge bg-secondary fw-normal" style="font-size:10px">Session Count : 0</span>
-            </div>
-            <div id="history-list-container" class="device-list-container">
+                <!-- Geçmiş Rota (Oturum) Kayıtları Buraya Eklenecek -->
+                <div id="history-list" class="device-list-container">
+                    <!-- Geçmiş rotalar buraya gelir -->
+                </div>
             </div>
         </div>
+
+        <!-- 2. BÖLÜM: Sağ Taraftaki Harita Alanı -->
+        <div id="map"></div>
     </div>
 
-    <div id="map"></div>
-</div>
-
-@section Scripts {
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue, update, query, limitToLast, get, orderByChild, equalTo, off } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-        // --- NAVBAR INTEGRATION & BUTTON SWAP ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const navbarBrand = document.querySelector('.navbar-brand');
-            const toggleBtn = document.getElementById('navbar-toggle-btn');
-
-            // Hamburger menü butonunu yerleştir
-            if (navbarBrand && toggleBtn) {
-                navbarBrand.parentNode.insertBefore(toggleBtn, navbarBrand);
-            }
-
-            // NAV BAR DÜZELTMESİ:
-            // "GPS" sayfasına giden linki bul ve onu "Temp & Humidity" linkine çevir.
-            const navLinks = document.querySelectorAll('.nav-link, .nav-item a');
-            navLinks.forEach(link => {
-                const href = link.getAttribute('href');
-                // Link "gps" içeriyorsa veya şu anki sayfanın kendisiyse
-                if (href && (href.toLowerCase().includes('gps') || href === window.location.pathname)) {
-
-                    // Linki "Sıcaklık ve Nem" sayfasına yönlendir
-                    link.href = '/Home/havadurumu';
-
-                    // İkon ve metni değiştir
-                    link.innerHTML = '<i class="fas fa-thermometer-half"></i> Temp & Humidity';
-
-                    // Aktiflik sınıfını kaldır ki tıklanabilir görünsün
-                    link.classList.remove('active');
-                    link.style.pointerEvents = 'auto';
-                }
-            });
-        });
-
-        const firebaseConfig = {
-            databaseURL: "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app/"
-        };
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const dbRef = ref(db, 'locations');
-
-        // Map Setup
-        var map = L.map('map', { zoomControl: false }).setView([37.5753, 36.9228], 13);
-        L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
+    <!-- Veritabanı şifreleri -->
+    <script src="~/assets/js/firebase-config.js"></script>
+    <script>
+        // --- 1. HARİTAYI BAŞLATMA ---
+        // Kahramanmaraş Karacasu koordinatlarında (37.5170, 36.9922) haritayı aç
+        let map = L.map('map', { zoomControl: false }).setView([37.5170, 36.9922], 13);
+        L.control.zoom({ position: 'bottomright' }).addTo(map); // Yakınlaştırma butonunu sağ alta koy
+        // OpenStreetMap (Ücretsiz harita sağlayıcısı) katmanını haritaya ekle
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        var markers = {};
+        // Harita üzerindeki işaretçileri, çizgileri hafızada tutacağımız değişkenler
+        let markers = {}; 
+        let selectedDevice = null; // Şu an tıklanan cihaz
+        let currentPolyline = null; // Haritaya çizilen mavi çizgi (Rota)
+        let currentHistoryDevice = null; // Geçmişi izlenen cihaz
+        let currentDrawnSessionId = null; // Şu an haritada çizili olan oturum
+        let startMarker = null; // Rotanın başladığı yer
+        let endMarker = null; // Rotanın bittiği yer
 
-        // GLOBAL VARIABLES
-        var currentPolyline = null;
-        var startMarker = null;
-        var endMarker = null;
-        var historyCache = {}; // For History Panel
+        // Gelen konum (enlem, boylam) değerinin gerçekten Dünya üzerinde mantıklı bir yer olup olmadığını kontrol eder
+        function isValidLocation(lat, lng) {
+            if (lat === null || lng === null || lat === undefined || lng === undefined) return false;
+            if (lat === 0 && lng === 0) return false; // Cihaz uydu bulamayınca 0,0 yollar
+            if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false; // Dünyanın sınırları dışındaysa geçersiz
+            return true;
+        }
 
-        // --- REALTIME TRACKING STATE ---
-        var activeSessionLayers = {};   // Stores Map Layers (Polyline/Marker)
-        var activeHistoryListeners = {}; // Stores Firebase Unsubscribe Functions
-        var activeSessionIds = {};       // Stores current Session ID per key
+        // --- 2. FİREBASE'İ (VERİTABANINI) DİNLEME ---
+        // Veritabanındaki "devices" kısmında bir değişiklik oldukça anında burası çalışır
+        database.ref('devices').on('value', snapshot => {
+            const devices = snapshot.val();
+            updateDeviceList(devices); // Sol taraftaki cihaz listesini güncelle
+            updateMarkers(devices); // Haritadaki iğnelerin (marker) yerini güncelle
 
-        // --- SYNCHRONIZATION STATE ---
-        var latestLiveCoords = {};      // Stores last known live coordinate from 'locations'
-        var cachedSessionPoints = {};   // Stores points from 'location_history'
-        var liveSessionDistances = {};  // Stores calculated string for display
+            // Eğer şu an bir cihazın geçmişine (rotasına) bakıyorsak, geçmiş listesini de güncelle
+            if (currentHistoryDevice && document.getElementById('view-history').style.display === 'flex') {
+                if (devices && devices[currentHistoryDevice]) {
+                    try {
+                        updateHistoryUI(currentHistoryDevice, devices[currentHistoryDevice]);
+                    } catch (e) {
+                        console.error("Geçmiş güncellenirken hata:", e);
+                    }
+                }
+            }
+        });
 
-        var historyUnsubscribe = null;  // For History View Panel
+        // --- SOL TARAFTAKI CİHAZ LİSTESİNİ OLUŞTURMA ---
+        function updateDeviceList(devices) {
+            const container = document.getElementById('device-list');
+            const countSpan = document.getElementById('device-count');
+            container.innerHTML = ''; // Önce eski listeyi sil
+            let count = 0;
 
-        // 1. MAIN LISTENER (Updates Device List & Live Coordinates)
-        onValue(dbRef, (snapshot) => {
-            const data = snapshot.val();
-            const listDiv = document.getElementById("device-list");
-            const countSpan = document.getElementById("device-count");
-            const statusSpan = document.getElementById("connection-status");
+            for (let id in devices) {
+                const dev = devices[id];
+                // Sadece GPS tipi cihazları listele, Isı/Nem sensörlerini geç
+                if (dev.info.type !== 'gps') continue;
+                count++;
 
-            if(statusSpan) statusSpan.innerHTML = '<i class="fas fa-wifi text-success"></i> Connection Established';
+                // Eğer son veri 5 dakika (300.000 ms) içindeyse AKTİF say, değilse PASİF
+                const isActive = (new Date() - new Date(dev.info.last_seen)) < 300000;
+                const borderClass = isActive ? 'border-active' : 'border-error';
+                
+                // Cihazın listeleneceği kutucuğu (HTML) oluştur
+                const div = document.createElement('div');
+                div.className = `device-card ${borderClass}`;
+                div.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <h6 class="m-0 fw-bold" style="font-size:13px; color:#333">${dev.info.name}</h6>
+                        <span class="text-success fw-bold" style="font-size:11px"><i class="fas fa-battery-full"></i> ${dev.info.battery}%</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge ${isActive ? 'bg-success' : 'bg-danger'}" style="font-size:10px">${isActive ? 'Aktif' : 'Pasif'}</span>
+                        <small class="text-muted" style="font-size:10px">${new Date(dev.info.last_seen).toLocaleTimeString()}</small>
+                    </div>
+                `;
+                // Bu kutuya tıklanınca ne olacağını belirle (Cihazı seç ve haritada oraya git)
+                div.onclick = () => selectDevice(id, dev);
+                container.appendChild(div); // Kutuyu ekrana ekle
+            }
+            countSpan.innerText = count; // Toplam sayıyı yukarıya yaz
+        }
 
-            if (!data) {
-                if(listDiv) listDiv.innerHTML = "<div class='text-center p-4 text-muted' style='font-size:12px'>No active devices detected.</div>";
-                if(countSpan) countSpan.innerText = "0";
+        // --- HARİTA ÜZERİNDEKİ İĞNELERİ (MARKER) YERLEŞTİRME ---
+        function updateMarkers(devices) {
+            for (let id in devices) {
+                const dev = devices[id];
+                if (dev.info.type !== 'gps' || !dev.latest) continue; // Sadece GPS cihazı ise devam et
+
+                const { lat, lng } = dev.latest; // Cihazın en son enlem boylamını al
+                if (!isValidLocation(lat, lng)) continue; // Koordinat hatalıysa haritada gösterme
+                
+                // Şu an bu cihazın yolu veritabanına kaydediliyor mu?
+                const isTracking = dev.settings && String(dev.settings.record_path) === 'true';
+
+                // İğneye tıklayınca açılacak küçük bilgi kutucuğunun (Popup) tasarımı
+                const popupContent = `
+                    <div style="text-align:center; font-family:'Inter',sans-serif;">
+                        <strong>${dev.info.name}</strong><br>
+                        <small class="text-muted">${new Date(dev.info.last_seen).toLocaleString()}</small>
+                        <hr style="margin:8px 0">
+                        <div class="d-grid gap-1">
+                            <!-- Kaydı Başlat/Durdur Butonu -->
+                            <button class="btn btn-sm ${isTracking ? 'btn-danger' : 'btn-success'}" style="font-size:11px" onclick="toggleRecording('${id}', ${!isTracking})">
+                                <i class="fas ${isTracking ? 'fa-stop' : 'fa-play'}"></i> ${isTracking ? 'Kaydı Durdur' : 'Kaydı Başlat'}
+                            </button>
+                            <!-- Geçmişi Gör Butonu -->
+                            <button class="btn btn-sm btn-primary" style="font-size:11px" onclick="openHistoryView('${id}')">
+                                <i class="fas fa-history"></i> Geçmişi Gör
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                // Eğer iğne zaten haritada varsa, sadece yerini ve içindeki yazıyı güncelle
+                if (markers[id]) {
+                    markers[id].setLatLng([lat, lng]).setPopupContent(popupContent);
+                } else {
+                    // Yoksa haritaya yeni bir iğne (Marker) ekle
+                    markers[id] = L.marker([lat, lng]).addTo(map).bindPopup(popupContent);
+                }
+            }
+        }
+
+        // --- BİR CİHAZA TIKLANINCA HARİTAYI ORAYA KAYDIRMA ---
+        function selectDevice(id, dev) {
+            selectedDevice = id;
+            if (dev.latest && isValidLocation(dev.latest.lat, dev.latest.lng)) {
+                // map.flyTo: Haritayı yumuşak bir animasyonla o noktaya uçurur
+                map.flyTo([dev.latest.lat, dev.latest.lng], 16);
+                // Yarım saniye bekle ve sonra iğnenin üzerindeki bilgi baloncuğunu aç
+                if (markers[id]) setTimeout(() => markers[id].openPopup(), 500);
+            }
+        }
+
+        // --- GEÇMİŞ GÖRÜNÜMÜNÜ (SOL MENÜ) AÇMA ---
+        window.openHistoryView = function(id) {
+            document.getElementById('view-devices').style.display = 'none'; // Cihaz listesini gizle
+            document.getElementById('view-history').style.display = 'flex'; // Geçmiş listesini göster
+            currentHistoryDevice = id;
+            
+            // Tıklanan cihazın verilerini veritabanından bir kereye mahsus çek ve arayüzü oluştur
+            database.ref(`devices/${id}`).once('value', snapshot => {
+                updateHistoryUI(id, snapshot.val());
+            });
+        };
+
+        // --- GEÇMİŞ MENÜSÜNÜN İÇİNİ DOLDURMA ---
+        function updateHistoryUI(id, dev) {
+            if (!dev) return;
+            document.getElementById('history-title-device').innerText = dev.info.name + " Geçmişi"; // Üst başlığı değiştir
+            
+            // Cihaz o an kayıt altında mı kontrol et
+            const isRecording = dev.settings && String(dev.settings.record_path) === 'true';
+            const activeSessionId = dev.settings ? dev.settings.current_session_id : null;
+            
+            // Üstteki mavi "Kaydı Başlat / Durdur" butonunun rengini ve yazısını ayarla
+            const btn = document.getElementById('toggle-record-btn');
+            btn.innerHTML = isRecording ? '<i class="fas fa-stop"></i> Kaydı Durdur' : '<i class="fas fa-play"></i> Kaydı Başlat';
+            btn.className = isRecording ? 'btn btn-sm btn-danger w-100' : 'btn btn-sm btn-outline-primary w-100';
+            btn.onclick = () => toggleRecording(id, !isRecording);
+
+            // Geçmiş oturumların listesini sol tarafa çizdir
+            renderHistoryList(dev.history);
+
+            // Eğer şu an bir rotayı kaydediyorsa (Canlı izleme), o rotayı haritaya çizmeye başla
+            if (isRecording && activeSessionId && dev.history && dev.history[activeSessionId]) {
+                if (!currentDrawnSessionId) {
+                    currentDrawnSessionId = activeSessionId;
+                    const records = Object.values(dev.history[activeSessionId])
+                                          .filter(r => isValidLocation(r.lat, r.lng))
+                                          .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+                    drawSessionPath(records, activeSessionId, false);
+                    return;
+                }
+            }
+
+            // Ya da halihazırda çizilmiş eski bir rotayı inceliyorsak onu güncelle
+            if (currentDrawnSessionId && dev.history && dev.history[currentDrawnSessionId]) {
+                const records = Object.values(dev.history[currentDrawnSessionId])
+                                      .filter(r => isValidLocation(r.lat, r.lng))
+                                      .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+                drawSessionPath(records, currentDrawnSessionId, true);
+            }
+        }
+
+        // --- GEÇMİŞ KAYITLARI (OTURUMLARI) SOL TARAFA LİSTELEME ---
+        function renderHistoryList(history) {
+            const container = document.getElementById('history-list');
+            container.innerHTML = '';
+            // Eğer hiç geçmiş yoksa uyar
+            if (!history) {
+                container.innerHTML = '<div class="text-center p-4 text-muted" style="font-size:12px">Kayıt bulunamadı.</div>';
                 return;
             }
 
-            const keys = Object.keys(data);
-            if(countSpan) countSpan.innerText = keys.length;
+            // Kayıt oturumlarının isimlerini al ve en yenisi en üstte çıkacak şekilde ters çevir
+            const sessionIds = Object.keys(history).reverse();
 
-            let listHtmlBuffer = "";
+            if (sessionIds.length === 0) {
+                container.innerHTML = '<div class="text-center p-4 text-muted" style="font-size:12px">Oturum kaydı bulunamadı.</div>';
+                return;
+            }
 
-            keys.forEach(key => {
-                const record = data[key];
-                const lat = record.lat || 0;
-                const lng = record.lng || 0;
-                const devName = record.device_name || "Unknown Device";
-                const bat = record.battery || 0;
-                const time = record.last_update || "-";
-                let status = record.status || "Active";
-                if (status === "Aktif") status = "Active";
-                if (status.includes("Konum Alınamadı") || status.includes("GPS Yok")) status = "No GPS Signal";
-
-                const isTracking = record.is_tracking === true;
-                const sessionId = record.session_id || null;
-                const isGpsValid = (lat !== 0 && lng !== 0);
-                const speed = record.speed || 0;
-
-                // [SYNC] Store live coordinates for sync
-                if (isGpsValid) {
-                    latestLiveCoords[key] = { lat: lat, lng: lng };
+            // Her bir oturum için bir kutucuk oluştur
+            sessionIds.forEach(sessionId => {
+                const sessionData = history[sessionId];
+                // Bu oturumdaki tüm nokta verilerini eskiden yeniye doğru sıraya diz
+                const records = Object.values(sessionData)
+                                      .filter(r => isValidLocation(r.lat, r.lng))
+                                      .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+                if(records.length === 0) return;
+                
+                // HESAPLAMALAR: Başlangıç Saati, Bitiş Saati
+                const startTimeMs = new Date(records[0].timestamp).getTime();
+                const endTimeMs = new Date(records[records.length-1].timestamp).getTime();
+                const startTime = new Date(startTimeMs).toLocaleString();
+                const endTime = new Date(endTimeMs).toLocaleTimeString();
+                
+                // HESAPLAMALAR: Toplam Alınan Mesafe
+                let totalDistance = 0;
+                for (let i = 0; i < records.length - 1; i++) {
+                    const p1 = L.latLng(records[i].lat, records[i].lng); // Birinci nokta
+                    const p2 = L.latLng(records[i+1].lat, records[i+1].lng); // İkinci nokta
+                    totalDistance += p1.distanceTo(p2); // İkisi arası mesafeyi (metre) ekle
                 }
-
-                // --- LIVE TRACKING LOGIC ---
-                if (isTracking && sessionId && isGpsValid) {
-                    if (!activeHistoryListeners[key] || activeSessionIds[key] !== sessionId) {
-                         if(activeHistoryListeners[key]) removeRealtimePath(key);
-                         updateRealtimePath(key, sessionId);
-                    }
-
-                    // [SYNC] Trigger recalculation immediately with new live coord
-                    recalculateAndDraw(key);
-                } else {
-                    removeRealtimePath(key);
-                    if(liveSessionDistances[key]) delete liveSessionDistances[key];
+                
+                // Metreyi kilometreye çevir
+                const distanceKm = totalDistance / 1000;
+                const distanceStr = totalDistance < 1000 ? `${Math.round(totalDistance)} m` : `${distanceKm.toFixed(2)} km`;
+                
+                // HESAPLAMALAR: Geçen Süre
+                const durationMs = endTimeMs - startTimeMs;
+                const durationHours = durationMs / (1000 * 60 * 60);
+                
+                // HESAPLAMALAR: Ortalama Hız = Mesafe / Zaman
+                let avgSpeed = 0;
+                if (durationHours > 0) {
+                    avgSpeed = distanceKm / durationHours;
                 }
-
-                if (isGpsValid) {
-                    const btnClass = isTracking ? "btn-danger" : "btn-success";
-                    const btnText = isTracking ? "Terminate Tracking" : "Initiate Tracking";
-                    const btnIcon = isTracking ? "fa-stop" : "fa-play";
-
-                    // Popup Content
-                    let metricsHtml = "";
-                    if (isTracking) {
-                         const distStr = liveSessionDistances[key] || "0 m";
-                         metricsHtml = `
-                            <span><i class="fas fa-tachometer-alt"></i> ${speed} km/h</span>
-                            <span class="text-primary fw-bold" style="font-size:10px"><i class="fas fa-ruler-horizontal"></i> ${distStr}</span>
-                         `;
-                    } else {
-                         metricsHtml = `<span></span>`;
-                    }
-
-                    const popupContent = `
-                        <div style="text-align:center; font-family:'Inter',sans-serif;">
-                            <strong>${devName}</strong><br>
-                            <span class="badge bg-secondary" style="font-size:10px">${time}</span>
-                            <hr style="margin:5px 0">
-                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-bottom:5px;">
-                                ${metricsHtml}
-                                <span><i class="fas fa-battery-half"></i> ${bat}%</span>
-                            </div>
-                            <div style="font-size:11px; margin-bottom:5px;">${status}</div>
-                            <div class="d-grid gap-1">
-                                <button class="btn btn-sm ${btnClass}" style="font-size:11px" onclick="window.toggleTracking('${key}', ${!isTracking})">
-                                     <i class="fas ${btnIcon}"></i> ${btnText}
-                                </button>
-                                <button class="btn btn-sm btn-info text-white" style="font-size:11px" onclick="window.openHistory('${key}', '${devName}')">
-                                    <i class="fas fa-history"></i> View History Log
-                                </button>
-                            </div>
-                        </div>`;
-
-                    if (markers[key]) {
-                        markers[key].setLatLng([lat, lng]);
-                        if(markers[key].isPopupOpen()) markers[key].setPopupContent(popupContent);
-                        else markers[key].setPopupContent(popupContent);
-                    } else {
-                        const newMarker = L.marker([lat, lng]).addTo(map);
-                        newMarker.bindPopup(popupContent);
-                        newMarker.bindTooltip(devName, { permanent: false, direction: 'top', className: 'bg-transparent border-0 fw-bold shadow-none' });
-                        markers[key] = newMarker;
-                    }
+                
+                // Geçen süreyi saat, dakika, saniye cinsine dönüştür
+                let durationStr = "0 sn";
+                if (durationMs > 0) {
+                    const totalSec = Math.floor(durationMs / 1000);
+                    const h = Math.floor(totalSec / 3600);
+                    const m = Math.floor((totalSec % 3600) / 60);
+                    const s = totalSec % 60;
+                    let parts = [];
+                    if (h > 0) parts.push(`${h} sa`);
+                    if (m > 0 || h > 0) parts.push(`${m} dk`);
+                    parts.push(`${s} sn`);
+                    durationStr = parts.join(' ');
                 }
-
-                let borderClass = isGpsValid && status === "Active" ? "border-active" : "border-error";
-                if(isTracking) borderClass = "border-primary";
-
-                let statusBadgeClass = isGpsValid && status === "Active" ? "status-ok" : "status-err";
-                let batIcon = "fa-battery-full"; let batColor = "text-success";
-                if(bat < 50) { batIcon = "fa-battery-half"; batColor = "text-warning"; }
-                if(bat < 20) { batIcon = "fa-battery-empty"; batColor = "text-danger"; }
-
-                // --- CARD HTML GENERATION ---
-                let cardMetricsHtml = "";
-                if(isTracking) {
-                     const currentVal = liveSessionDistances[key] || "0 m";
-                     cardMetricsHtml = `<div class="mt-1"><span id="dist-badge-${key}" class="badge bg-light text-primary border" style="font-size:10px"><i class="fas fa-route"></i> Dist: ${currentVal}</span></div>`;
+                
+                // Sol taraftaki listeye kutuyu ekleme
+                const div = document.createElement('div');
+                div.className = 'device-card mb-2';
+                // Eğer bu oturum şu an haritada çiziliyse, etrafını mavi yap
+                if (currentDrawnSessionId === sessionId) {
+                    div.classList.add('border', 'border-primary');
                 }
-
-                listHtmlBuffer += `
-                    <div class="device-card ${borderClass}" onclick="window.focusDevice(${lat}, ${lng}, '${key}')">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <h6 class="m-0 fw-bold" style="font-size:13px; color:#333">${devName}</h6>
-                            <span class="${batColor} fw-bold" style="font-size:11px"><i class="fas ${batIcon}"></i> ${bat}%</span>
+                div.style.padding = '10px';
+                div.style.cursor = 'pointer';
+                // Kutuya tıklanınca o rotayı haritaya çizmesini söyle
+                div.onclick = () => {
+                    document.querySelectorAll('#history-list .device-card').forEach(el => el.classList.remove('border', 'border-primary'));
+                    div.classList.add('border', 'border-primary');
+                    drawSessionPath(records, sessionId, false);
+                };
+                
+                // Kutunun içine hesapladığımız verileri yaz
+                div.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div style="font-size:12px; font-weight:600; color:#333;">
+                            <i class="fas fa-route text-primary me-1"></i> Başlangıç: ${startTime}
                         </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="status-badge ${statusBadgeClass}">${status}</span>
-                            <small class="text-muted" style="font-size:10px">${time}</small>
-                        </div>
-                         ${cardMetricsHtml}
-                         ${isTracking ? '<div class="text-center mt-1"><span class="badge bg-primary" style="font-size:9px">Logging Data...</span></div>' : ''}
+                        <span class="badge bg-secondary" style="font-size:10px">${records.length} Nokta</span>
+                    </div>
+                    <div style="font-size:11px; color:#666; margin-left: 20px; margin-bottom: 4px;">
+                        Bitiş: ${endTime}
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top" style="font-size:11px; color:#444;">
+                        <div title="Toplam Mesafe"><i class="fas fa-ruler text-secondary"></i> ${distanceStr}</div>
+                        <div title="Geçen Süre"><i class="fas fa-clock text-secondary"></i> ${durationStr}</div>
+                        <div title="Ortalama Hız"><i class="fas fa-tachometer-alt text-secondary"></i> ${avgSpeed.toFixed(1)} km/sa</div>
                     </div>
                 `;
+                
+                container.appendChild(div);
+            });
+        }
+
+        // --- HARİTAYA MAVİ ROTAYI (ÇİZGİYİ) ÇİZME FONKSİYONU ---
+        window.drawSessionPath = function(records, sessionId, isUpdate = false) {
+            currentDrawnSessionId = sessionId;
+            // Eski bir çizgi, yeşil bayrak (başlangıç) veya kırmızı bayrak (bitiş) varsa haritadan sil
+            if (currentPolyline) map.removeLayer(currentPolyline);
+            if (startMarker) map.removeLayer(startMarker);
+            if (endMarker) map.removeLayer(endMarker);
+            
+            if (!records || records.length === 0) return;
+
+            // Bütün geçmiş koordinatları tek bir dizi (array) içine topla
+            const latlngs = records.map(r => [r.lat, r.lng]);
+            
+            // Tüm bu koordinatları birleştiren mavi (color: #0d6efd) kalın (weight: 4) bir çizgi (Polyline) çiz
+            currentPolyline = L.polyline(latlngs, {color: '#0d6efd', weight: 4, opacity: 0.8}).addTo(map);
+            
+            // Başlangıç için yeşil bir ikon tasarımı
+            const startIcon = L.divIcon({
+                html: '<div style="font-size: 24px; color: #198754; text-shadow: 1px 1px 2px white;"><i class="fas fa-flag"></i></div>',
+                className: '',
+                iconSize: [24, 24],
+                iconAnchor: [6, 24]
+            });
+            
+            // Bitiş için kırmızı bir ikon tasarımı
+            const endIcon = L.divIcon({
+                html: '<div style="font-size: 24px; color: #dc3545; text-shadow: 1px 1px 2px white;"><i class="fas fa-flag-checkered"></i></div>',
+                className: '',
+                iconSize: [24, 24],
+                iconAnchor: [6, 24]
             });
 
-            if(listDiv) listDiv.innerHTML = listHtmlBuffer;
-
-            // [SYNC] After re-rendering list, force update text just in case
-            keys.forEach(key => {
-                if(liveSessionDistances[key]) {
-                    const el = document.getElementById(`dist-badge-${key}`);
-                    if(el) el.innerHTML = `<i class="fas fa-route"></i> Dist: ${liveSessionDistances[key]}`;
-                }
-            });
-        });
-
-        // --- HELPER: CALCULATE TOTAL DISTANCE ---
-        function calculateTotalDistance(points) {
-            let totalDistance = 0;
-            for (let i = 0; i < points.length - 1; i++) {
-                const p1 = L.latLng(points[i][0], points[i][1]);
-                const p2 = L.latLng(points[i+1][0], points[i+1][1]);
-                totalDistance += p1.distanceTo(p2);
+            // İlk konuma yeşil bayrağı yerleştir
+            startMarker = L.marker(latlngs[0], {icon: startIcon}).addTo(map)
+                .bindPopup(`<div style="text-align:center; font-family:'Inter',sans-serif;"><b>Başlangıç</b><br><small>${new Date(records[0].timestamp).toLocaleString()}</small></div>`);
+                
+            // Eğer birden fazla nokta varsa, en sonuncu konuma da kırmızı bayrağı yerleştir
+            if (latlngs.length > 1) {
+                endMarker = L.marker(latlngs[latlngs.length - 1], {icon: endIcon}).addTo(map)
+                    .bindPopup(`<div style="text-align:center; font-family:'Inter',sans-serif;"><b>Bitiş / Son Konum</b><br><small>${new Date(records[records.length - 1].timestamp).toLocaleString()}</small></div>`);
             }
-            return totalDistance;
-        }
-
-        function formatDistance(meters) {
-            if (meters < 1000) return Math.round(meters) + " m";
-            return (meters / 1000).toFixed(2) + " km";
-        }
-
-        // --- NEW: MERGED CALCULATION & DRAWING ---
-        // This function combines Cached History + Latest Live Coordinate
-        function recalculateAndDraw(key) {
-            if (!cachedSessionPoints[key] || cachedSessionPoints[key].length === 0) return;
-
-            // 1. Create a copy of history points
-            let pointsToDraw = [...cachedSessionPoints[key]];
-            const startData = pointsToDraw[0]; // Start point info
-
-            // 2. [CRITICAL] Append the Live Coordinate if it exists and is different from last history point
-            if (latestLiveCoords[key]) {
-                const lastHist = pointsToDraw[pointsToDraw.length - 1];
-                const live = latestLiveCoords[key];
-
-                // Simple check to avoid duplicates (Lat/Lng comparison)
-                if (Math.abs(lastHist[0] - live.lat) > 0.00001 || Math.abs(lastHist[1] - live.lng) > 0.00001) {
-                    pointsToDraw.push([live.lat, live.lng]);
-                }
-            }
-
-            // 3. Calculate Distance on the MERGED path
-            const dist = calculateTotalDistance(pointsToDraw);
-            const distStr = formatDistance(dist);
-
-            // 4. Update Global State & UI
-            liveSessionDistances[key] = distStr;
-            const badgeEl = document.getElementById(`dist-badge-${key}`);
-            if (badgeEl) {
-                badgeEl.innerHTML = `<i class="fas fa-route"></i> Dist: ${distStr}`;
-            }
-
-            // 5. Update Map Layer (Polyline)
-            if (!activeSessionLayers[key]) {
-                activeSessionLayers[key] = {
-                    polyline: L.polyline([], {
-                        color: '#007bff',
-                        weight: 4,
-                        dashArray: '10, 10',
-                        opacity: 0.7
-                    }).addTo(map),
-                    startMarker: null
-                };
-            }
-
-            const layer = activeSessionLayers[key];
-            layer.polyline.setLatLngs(pointsToDraw);
-
-            // 6. Update Start Marker Popup
-             const popupContent = `
-                <div class="text-center">
-                    <strong class="text-success">🏁 Start Point</strong><br>
-                    <hr style="margin:4px 0">
-                    <span class="text-primary fw-bold">Live Distance: ${distStr}</span>
-                </div>`;
-
-            if (startData) {
-                if (!layer.startMarker) {
-                     const icon = L.divIcon({
-                        html: `<i class="fas fa-map-marker-alt" style="color:#28a745; font-size:24px; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5));"></i>`,
-                        className: 'bg-transparent border-0',
-                        iconSize: [24, 24],
-                        iconAnchor: [12, 24],
-                        popupAnchor: [0, -24]
-                    });
-                    // Note: startData here is [lat, lng]
-                    layer.startMarker = L.marker([startData[0], startData[1]], { icon: icon })
-                        .addTo(map)
-                        .bindPopup(popupContent);
+            
+            // Haritayı kamerasıyla bu çizginin tam ortasına getir ve sığacak kadar uzaklaştır (fitBounds)
+            if (!isUpdate) {
+                if (latlngs.length > 1) {
+                    map.fitBounds(currentPolyline.getBounds(), { padding: [30, 30] });
                 } else {
-                     layer.startMarker.setLatLng([startData[0], startData[1]]);
-                     layer.startMarker.setPopupContent(popupContent);
+                    map.setView(latlngs[0], 17); // Tek nokta varsa sadece oraya yakınlaş
                 }
             }
-        }
-
-        // --- REALTIME PATH LISTENER ---
-        function updateRealtimePath(key, sessionId) {
-            activeSessionIds[key] = sessionId;
-
-            const historyRef = query(
-                ref(db, 'location_history/' + key),
-                orderByChild('session_id'),
-                equalTo(sessionId)
-            );
-
-            // Listen for HISTORY updates
-            const unsubscribe = onValue(historyRef, (snapshot) => {
-                if (!snapshot.exists()) return;
-
-                const data = snapshot.val();
-                const sortedKeys = Object.keys(data).sort();
-
-                // Cache the HISTORY points
-                cachedSessionPoints[key] = sortedKeys.map(k => [data[k].lat, data[k].lng]);
-
-                // Call the merger function
-                recalculateAndDraw(key);
-
-            }, { onlyOnce: false });
-
-            activeHistoryListeners[key] = unsubscribe;
-        }
-
-        function removeRealtimePath(key) {
-            if (activeHistoryListeners[key]) {
-                activeHistoryListeners[key]();
-                delete activeHistoryListeners[key];
-            }
-            if (activeSessionIds[key]) delete activeSessionIds[key];
-            if (cachedSessionPoints[key]) delete cachedSessionPoints[key];
-            if (activeSessionLayers[key]) {
-                const layer = activeSessionLayers[key];
-                if (layer.polyline) map.removeLayer(layer.polyline);
-                if (layer.startMarker) map.removeLayer(layer.startMarker);
-                delete activeSessionLayers[key];
-            }
-        }
-
-        // --- GLOBAL FUNCTIONS ---
-
-        window.toggleSidebar = function() {
-            document.getElementById('sidebar').classList.toggle('active');
         };
 
-        window.focusDevice = function(lat, lng, key) {
-            if (!lat || !lng) { alert("GPS coordinates unavailable."); return; }
-
-            if (currentPolyline) { map.removeLayer(currentPolyline); currentPolyline = null; }
-            if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
-            if (endMarker) { map.removeLayer(endMarker); endMarker = null; }
-
-            map.flyTo([lat, lng], 16, { animate: true, duration: 1.5 });
-            if(markers[key]) { setTimeout(() => { markers[key].openPopup(); }, 1500); }
-            if (window.innerWidth <= 768) { document.getElementById('sidebar').classList.remove('active'); }
-        };
-
-        window.toggleTracking = function(key, newStatus) {
-            const url = `/Home/ToggleTracking?id=${encodeURIComponent(key)}&status=${newStatus}`;
-            fetch(url, { method: 'POST' })
-            .then(async response => {
-                if (!response.ok) {
-                    const text = await response.text();
-                    let msg = "Operation Failed.";
-                    try {
-                        const json = JSON.parse(text);
-                        if(json.error) msg = json.error;
-                    } catch(e) { msg = text; }
-                    alert("Error: " + msg);
-                } else {
-                    if(newStatus === false) removeRealtimePath(key);
-                }
-            })
-            .catch(error => alert("Connection Error: " + error));
-        };
-
-        // --- HISTORY FUNCTION ---
-        window.openHistory = function(key, devName) {
-            if (window.innerWidth <= 768) { document.getElementById('sidebar').classList.add('active'); }
-
-            document.getElementById('view-devices').style.display = 'none';
-            document.getElementById('view-history').style.display = 'flex';
-            document.getElementById('history-title-device').innerText = devName + " History Logs";
-
-            const listContainer = document.getElementById('history-list-container');
-            const sessionCountBadge = document.getElementById('history-session-count');
-
-            if (historyUnsubscribe) {
-                historyUnsubscribe();
-                historyUnsubscribe = null;
-            }
-
-            listContainer.innerHTML = '<div class="text-center mt-4"><div class="spinner-border text-primary spinner-border-sm"></div><p>Loading realtime data...</p></div>';
-            sessionCountBadge.innerText = "Session Count : 0";
-
-            const historyRef = query(ref(db, 'location_history/' + key), limitToLast(5000));
-            historyUnsubscribe = onValue(historyRef, (snapshot) => {
-                if (!snapshot.exists()) {
-                    listContainer.innerHTML = '<div class="text-center mt-4 text-muted">No historical records found.</div>';
-                    sessionCountBadge.innerText = "Session Count : 0";
-                    return;
-                }
-                const data = snapshot.val();
-                const sortedKeys = Object.keys(data).sort();
-                const grouped = {};
-
-                sortedKeys.forEach(k => {
-                    const item = data[k];
-                    if(item.session_id) {
-                        if(!grouped[item.session_id]) grouped[item.session_id] = [];
-                        grouped[item.session_id].push(item);
-                    }
-                });
-
-                const sortedSessionKeys = Object.keys(grouped).sort().reverse();
-                historyCache = grouped;
-
-                sessionCountBadge.innerText = "Session Count : " + sortedSessionKeys.length;
-
-                let html = "";
-                if (sortedSessionKeys.length === 0) {
-                     html = '<div class="text-center mt-4 text-muted">No tracking sessions recorded yet.</div>';
-                } else {
-                    sortedSessionKeys.forEach((sessionId, index) => {
-                        const sessionData = grouped[sessionId];
-                        const count = sessionData.length;
-
-                        const startPoint = sessionData[0];
-                        const endPoint = sessionData[sessionData.length - 1];
-                        const startTime = startPoint.last_update || "N/A";
-                        const endTime = endPoint.last_update || "N/A";
-
-                        const sessionPoints = sessionData.map(p => [p.lat, p.lng]);
-                        const totalDist = calculateTotalDistance(sessionPoints);
-                        const totalDistStr = formatDistance(totalDist);
-
-                        html += `
-                            <div class="device-card history-card" onclick="window.drawHistoryLine('${sessionId}', this)">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div style="flex-grow:1">
-                                        <h6 class="m-0 fw-bold" style="color:#333; font-size:13px">
-                                            <i class="fas fa-route text-danger me-1"></i> Session Log ${index + 1}
-                                        </h6>
-                                        <div class="mt-1" style="font-size:10px; color:#555;">
-                                            <div><span class="fw-bold text-success">Start:</span> ${startTime}</div>
-                                            <div><span class="fw-bold text-danger">End:</span> ${endTime}</div>
-                                            <div class="mt-1"><span class="badge bg-light text-dark border"><i class="fas fa-ruler-horizontal"></i> ${totalDistStr}</span></div>
-                                        </div>
-                                    </div>
-                                    <span class="badge bg-primary rounded-pill ms-2">${count} Pts</span>
-                                </div>
-                            </div>
-                        `;
-                    });
-                }
-                listContainer.innerHTML = html;
-
-            }, (error) => {
-                listContainer.innerHTML = `<div class="text-danger text-center p-3">Error: ${error.message}</div>`;
-            });
-        };
-
-        window.drawHistoryLine = function(sessionId, element) {
-            if (currentPolyline) { map.removeLayer(currentPolyline); currentPolyline = null; }
-            if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
-            if (endMarker) { map.removeLayer(endMarker); endMarker = null; }
-
-            document.querySelectorAll('.history-card').forEach(el => el.classList.remove('history-active'));
-            if(element) element.classList.add('history-active');
-
-            const pointsData = historyCache[sessionId];
-            if (!pointsData || pointsData.length === 0) return;
-
-            const startPoint = pointsData[0];
-            const endPoint = pointsData[pointsData.length - 1];
-
-            const latlngs = pointsData.map(p => [p.lat, p.lng]);
-            const totalDist = calculateTotalDistance(latlngs);
-            const totalDistStr = formatDistance(totalDist);
-
-            currentPolyline = L.polyline(latlngs, {
-                color: 'blue',
-                weight: 5,
-                opacity: 0.8,
-                lineJoin: 'round'
-            }).addTo(map);
-
-            const createIcon = (color, iconClass) => {
-                return L.divIcon({
-                    html: `<i class="${iconClass}" style="color:${color}; font-size:28px; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5));"></i>`,
-                    className: 'bg-transparent border-0',
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 30],
-                    popupAnchor: [0, -30]
-                });
-            };
-
-            startMarker = L.marker([startPoint.lat, startPoint.lng], {
-                icon: createIcon('#28a745', 'fas fa-map-marker-alt')
-            }).addTo(map).bindPopup(`
-                <div class="text-center">
-                    <strong class="text-success">🏁 Start Point</strong><br>
-                    ${startPoint.last_update || ''}
-                </div>
-            `);
-
-            endMarker = L.marker([endPoint.lat, endPoint.lng], {
-                icon: createIcon('#dc3545', 'fas fa-flag-checkered')
-            }).addTo(map).bindPopup(`
-                <div class="text-center">
-                    <strong class="text-danger">🛑 End Point</strong><br>
-                    ${endPoint.last_update || ''}<br>
-                    <hr style="margin:4px 0">
-                    <span class="text-primary fw-bold">Total Distance: ${totalDistStr}</span>
-                </div>
-            `);
-
-            map.fitBounds(currentPolyline.getBounds());
-
-            if (window.innerWidth <= 768) {
-                document.getElementById('sidebar').classList.remove('active');
-            }
-        };
-
+        // --- GEÇMİŞ MENÜSÜNÜ KAPATMA FONKSİYONU ---
         window.closeHistory = function() {
-            if (historyUnsubscribe) {
-                historyUnsubscribe();
-                historyUnsubscribe = null;
-            }
+            document.getElementById('view-history').style.display = 'none'; // Geçmişi gizle
+            document.getElementById('view-devices').style.display = 'flex'; // Cihaz listesini göster
+            currentHistoryDevice = null;
+            currentDrawnSessionId = null;
+            
+            // Haritadaki rotayı ve bayrakları sil, temizle
+            if (currentPolyline) { map.removeLayer(currentPolyline); currentPolyline = null; }
+            if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
+            if (endMarker) { map.removeLayer(endMarker); endMarker = null; }
+        };
 
-            document.getElementById('view-history').style.display = 'none';
-            document.getElementById('view-devices').style.display = 'flex';
+        // --- KAYIT BAŞLAT / DURDUR (FIREBASE'E SÖYLEME) ---
+        window.toggleRecording = function(devEui, enabled) {
+            // Veritabanına göndereceğimiz ayarlar paketi
+            let updates = { record_path: enabled }; // record_path = true (Kaydet) veya false (Kapat)
+            
+            // Eğer "Kaydet" dediysek, şu anki zamanı kullanarak yeni bir oturum adı (session_id) uydur
+            if (enabled) {
+                updates.current_session_id = 'session_' + Date.now();
+                currentDrawnSessionId = null; // Eski çizimi unuttur, yenisi çizilsin
+            }
+            
+            // Ayarı veritabanına ilet. Veritabanı bunu algılayıp yeni verileri "history" klasörüne işlemeye başlayacaktır.
+            database.ref(`devices/${devEui}/settings`).update(updates).then(() => {
+                // Güncelleme başarılı olursa menüyü tekrar yükle
+                if (document.getElementById('view-history').style.display === 'flex') {
+                    openHistoryView(devEui);
+                }
+            }).catch(err => {
+                // Veritabanında izin hatası falan çıkarsa uyarı ver
+                console.error("Firebase update error:", err);
+                alert("Kayıt durumu güncellenemedi. Lütfen Firebase yetkilerinizi kontrol edin.");
+            });
         };
     </script>
-}
+</body>
+</html>
