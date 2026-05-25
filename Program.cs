@@ -20,12 +20,22 @@ Console.WriteLine($"[DEBUG] Current Directory: {Directory.GetCurrentDirectory()}
 Console.WriteLine($"[DEBUG] Content Root Path: {builder.Environment.ContentRootPath}");
 Console.WriteLine($"[DEBUG] appsettings.json exists in root: {File.Exists(Path.Combine(builder.Environment.ContentRootPath, "appsettings.json"))}");
 Console.WriteLine($"[DEBUG] /etc/secrets/appsettings.json exists: {File.Exists("/etc/secrets/appsettings.json")}");
-Console.WriteLine($"[DEBUG] Firebase:DatabaseUrl: {builder.Configuration["Firebase:DatabaseUrl"]}");
-Console.WriteLine($"[DEBUG] Firebase:AuthSecret is null or empty: {string.IsNullOrEmpty(builder.Configuration["Firebase:AuthSecret"])}");
-if (!string.IsNullOrEmpty(builder.Configuration["Firebase:AuthSecret"]))
+
+var configRoot = (IConfigurationRoot)builder.Configuration;
+foreach (var provider in configRoot.Providers)
 {
-    Console.WriteLine($"[DEBUG] Firebase:AuthSecret starts with: {builder.Configuration["Firebase:AuthSecret"].Substring(0, Math.Min(5, builder.Configuration["Firebase:AuthSecret"].Length))}...");
+    if (provider.TryGet("Firebase:AuthSecret", out var val))
+    {
+        Console.WriteLine($"[DEBUG] -> Provider: {provider.GetType().Name}, Key 'Firebase:AuthSecret' value length: {val?.Length ?? -1}");
+    }
+    if (provider.TryGet("Firebase:DatabaseUrl", out var urlVal))
+    {
+        Console.WriteLine($"[DEBUG] -> Provider: {provider.GetType().Name}, Key 'Firebase:DatabaseUrl' value: '{urlVal}'");
+    }
 }
+Console.WriteLine($"[DEBUG] Final Firebase:DatabaseUrl: '{builder.Configuration["Firebase:DatabaseUrl"]}'");
+Console.WriteLine($"[DEBUG] Final Firebase:AuthSecret is null or empty: {string.IsNullOrEmpty(builder.Configuration["Firebase:AuthSecret"])}");
+
 
 builder.Services.AddControllers()
     .AddNewtonsoftJson(options =>
