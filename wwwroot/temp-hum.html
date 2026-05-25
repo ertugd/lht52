@@ -27,7 +27,10 @@
     <!-- Top Menu -->
     <nav>
         <a href="index.html" class="navbar-brand">Istiklal LoRaWAN</a>
-        <div class="nav-links">
+        <button class="menu-toggle" id="menu-toggle-btn" aria-label="Toggle Menu">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="nav-links" id="navbar-links">
             <a href="index.html"><i class="fas fa-home"></i> Home</a>
             <a href="summary.html"><i class="fas fa-chart-line"></i> System Summary</a>
             <a href="temp-hum.html" class="active"><i class="fas fa-thermometer-half"></i> Temp & Hum</a>
@@ -92,7 +95,7 @@
         </div>
 
         <!-- Section 3: History Charts -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 20px;">
             <!-- Temperature History -->
             <div class="card">
                 <h3 class="chart-title">🌡️ Temperature History (24 Hours)</h3>
@@ -273,5 +276,7 @@
         loadWeatherData();
         setInterval(loadWeatherData, 600000);
     </script>
+    <!-- Main Script -->
+    <script src="assets/js/main.js"></script>
 </body>
 </html>

@@ -27,8 +27,14 @@
 <body>
     <!-- Top Menu -->
     <nav>
+        <button class="sidebar-toggle" id="sidebar-toggle-btn" aria-label="Toggle Devices">
+            <i class="fas fa-bars"></i>
+        </button>
         <a href="index.html" class="navbar-brand">Istiklal LoRaWAN</a>
-        <div class="nav-links">
+        <button class="menu-toggle" id="menu-toggle-btn" aria-label="Toggle Menu">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="nav-links" id="navbar-links">
             <a href="index.html"><i class="fas fa-home"></i> Home</a>
             <a href="summary.html"><i class="fas fa-chart-line"></i> System Summary</a>
             <a href="temp-hum.html"><i class="fas fa-thermometer-half"></i> Temp & Hum</a>
@@ -177,7 +183,7 @@
                             <button class="btn btn-sm ${isTracking ? 'btn-danger' : 'btn-success'}" style="font-size:11px" onclick="toggleRecording('${id}', ${!isTracking})">
                                 <i class="fas ${isTracking ? 'fa-stop' : 'fa-play'}"></i> ${isTracking ? 'Stop Recording' : 'Start Recording'}
                             </button>
-                            <button class="btn btn-sm btn-primary" style="font-size:11px" onclick="openHistoryView('${id}')">
+                            <button class="btn btn-sm btn-primary" style="font-size:11px" onclick="openHistoryView('${id}', event)">
                                 <i class="fas fa-history"></i> View History
                             </button>
                         </div>
@@ -200,10 +206,17 @@
             }
         }
 
-        window.openHistoryView = function(id) {
+        window.openHistoryView = function(id, event) {
+            if (event) {
+                event.stopPropagation();
+            }
             document.getElementById('view-devices').style.display = 'none';
             document.getElementById('view-history').style.display = 'flex';
             currentHistoryDevice = id;
+            
+            // Slide sidebar open on mobile
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) sidebar.classList.add('active');
             
             database.ref(`devices/${id}`).once('value', snapshot => {
                 updateHistoryUI(id, snapshot.val());
@@ -407,5 +420,7 @@
             });
         };
     </script>
+    <!-- Main Script -->
+    <script src="assets/js/main.js"></script>
 </body>
 </html>

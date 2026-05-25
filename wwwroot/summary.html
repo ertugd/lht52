@@ -25,7 +25,10 @@
     <!-- Top Navigation Menu -->
     <nav>
         <a href="index.html" class="navbar-brand">Istiklal LoRaWAN</a>
-        <div class="nav-links">
+        <button class="menu-toggle" id="menu-toggle-btn" aria-label="Toggle Menu">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="nav-links" id="navbar-links">
             <a href="index.html"><i class="fas fa-home"></i> Home</a>
             <a href="summary.html" class="active"><i class="fas fa-chart-line"></i> System Summary</a>
             <a href="temp-hum.html"><i class="fas fa-thermometer-half"></i> Temp & Hum</a>
@@ -166,5 +169,7 @@
             }
         });
     </script>
+    <!-- Main Script -->
+    <script src="assets/js/main.js"></script>
 </body>
 </html>
