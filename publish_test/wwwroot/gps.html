@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Istiklal LoRaWAN | GPS Tracking</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="assets/css/style.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- Leaflet JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+    <!-- Top Menu -->
+    <nav>
+        <a href="index.html" class="navbar-brand">Istiklal LoRaWAN</a>
+        <div class="nav-links">
+            <a href="index.html"><i class="fas fa-home"></i> Home</a>
+            <a href="summary.html"><i class="fas fa-chart-line"></i> System Summary</a>
+            <a href="temp-hum.html"><i class="fas fa-thermometer-half"></i> Temp & Hum</a>
+            <a href="gps.html" class="active"><i class="fas fa-map-marker-alt"></i> GPS Tracking</a>
+            <a href="architecture.html"><i class="fas fa-network-wired"></i> Architecture</a>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            
+            <!-- A. Devices List View -->
+            <div id="view-devices" style="display:flex; flex-direction:column; height:100%;">
+                <div class="sidebar-header">
+                    <i class="fas fa-satellite-dish text-primary"></i> Device List (<span id="device-count">0</span>)
+                </div>
+                <div class="device-list-container" id="device-list">
+                    <div class="text-center mt-5 text-muted">
+                        <p style="font-size:12px">Loading data...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- B. Device History View -->
+            <div id="view-history" style="display:none; flex-direction:column; height:100%; background:#f8f9fa;">
+                <div class="sidebar-header bg-light d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <!-- Go Back Button -->
+                        <button class="btn btn-sm btn-outline-secondary me-2 border-0" onclick="closeHistory()">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <span id="history-title-device" style="font-size:13px; font-weight:700">History</span>
+                    </div>
+                </div>
+                <div class="px-3 py-2 bg-white border-bottom text-center">
+                    <!-- Record path toggle button -->
+                    <button id="toggle-record-btn" class="btn btn-sm btn-outline-primary w-100" style="font-size:11px">
+                        <i class="fas fa-play"></i> Start Recording
+                    </button>
+                </div>
+                <!-- History records list -->
+                <div id="history-list" class="device-list-container">
+                    <!-- Historical sessions render here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Area -->
+        <div id="map"></div>
+    </div>
+
+    <!-- Firebase Config & Logic -->
+    <script src="assets/js/firebase-config.js"></script>
+    <script>
+        // --- 1. INITIALIZE MAP ---
+        let map = L.map('map', { zoomControl: false }).setView([37.5170, 36.9922], 13);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        let markers = {}; 
+        let selectedDevice = null;
+        let currentPolyline = null;
+        let currentHistoryDevice = null;
+        let currentDrawnSessionId = null;
+        let startMarker = null;
+        let endMarker = null;
+
+        function isValidLocation(lat, lng) {
+            if (lat === null || lng === null || lat === undefined || lng === undefined) return false;
+            if (lat === 0 && lng === 0) return false;
+            if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
+            return true;
+        }
+
+        // --- 2. LISTEN TO FIREBASE ---
+        database.ref('devices').on('value', snapshot => {
+            const devices = snapshot.val();
+            updateDeviceList(devices);
+            updateMarkers(devices);
+
+            if (currentHistoryDevice && document.getElementById('view-history').style.display === 'flex') {
+                if (devices && devices[currentHistoryDevice]) {
+                    try {
+                        updateHistoryUI(currentHistoryDevice, devices[currentHistoryDevice]);
+                    } catch (e) {
+                        console.error("Error updating history:", e);
+                    }
+                }
+            }
+        });
+
+        // --- RENDER SIDEBAR DEVICE LIST ---
+        function updateDeviceList(devices) {
+            const container = document.getElementById('device-list');
+            const countSpan = document.getElementById('device-count');
+            container.innerHTML = '';
+            let count = 0;
+
+            for (let id in devices) {
+                const dev = devices[id];
+                if (dev.info.type !== 'gps') continue;
+                count++;
+
+                const isActive = (new Date() - new Date(dev.info.last_seen)) < 300000;
+                const borderClass = isActive ? 'border-active' : 'border-error';
+                
+                const div = document.createElement('div');
+                div.className = `device-card ${borderClass}`;
+                div.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <h6 class="m-0 fw-bold" style="font-size:13px; color:#333">${dev.info.name}</h6>
+                        <span class="text-success fw-bold" style="font-size:11px"><i class="fas fa-battery-full"></i> ${dev.info.battery}%</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge ${isActive ? 'bg-success' : 'bg-danger'}" style="font-size:10px">${isActive ? 'Active' : 'Inactive'}</span>
+                        <small class="text-muted" style="font-size:10px">${new Date(dev.info.last_seen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>
+                    </div>
+                `;
+                div.onclick = () => selectDevice(id, dev);
+                container.appendChild(div);
+            }
+            countSpan.innerText = count;
+        }
+
+        // --- MAP MARKERS ---
+        function updateMarkers(devices) {
+            for (let id in devices) {
+                const dev = devices[id];
+                if (dev.info.type !== 'gps' || !dev.latest) continue;
+
+                const { lat, lng } = dev.latest;
+                if (!isValidLocation(lat, lng)) continue;
+                
+                const isTracking = dev.settings && String(dev.settings.record_path) === 'true';
+
+                const popupContent = `
+                    <div style="text-align:center; font-family:'Inter',sans-serif;">
+                        <strong>${dev.info.name}</strong><br>
+                        <small class="text-muted">${new Date(dev.info.last_seen).toLocaleString('en-US')}</small>
+                        <hr style="margin:8px 0">
+                        <div class="d-grid gap-1">
+                            <button class="btn btn-sm ${isTracking ? 'btn-danger' : 'btn-success'}" style="font-size:11px" onclick="toggleRecording('${id}', ${!isTracking})">
+                                <i class="fas ${isTracking ? 'fa-stop' : 'fa-play'}"></i> ${isTracking ? 'Stop Recording' : 'Start Recording'}
+                            </button>
+                            <button class="btn btn-sm btn-primary" style="font-size:11px" onclick="openHistoryView('${id}')">
+                                <i class="fas fa-history"></i> View History
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                if (markers[id]) {
+                    markers[id].setLatLng([lat, lng]).setPopupContent(popupContent);
+                } else {
+                    markers[id] = L.marker([lat, lng]).addTo(map).bindPopup(popupContent);
+                }
+            }
+        }
+
+        function selectDevice(id, dev) {
+            selectedDevice = id;
+            if (dev.latest && isValidLocation(dev.latest.lat, dev.latest.lng)) {
+                map.flyTo([dev.latest.lat, dev.latest.lng], 16);
+                if (markers[id]) setTimeout(() => markers[id].openPopup(), 500);
+            }
+        }
+
+        window.openHistoryView = function(id) {
+            document.getElementById('view-devices').style.display = 'none';
+            document.getElementById('view-history').style.display = 'flex';
+            currentHistoryDevice = id;
+            
+            database.ref(`devices/${id}`).once('value', snapshot => {
+                updateHistoryUI(id, snapshot.val());
+            });
+        };
+
+        function updateHistoryUI(id, dev) {
+            if (!dev) return;
+            document.getElementById('history-title-device').innerText = dev.info.name + " History";
+            
+            const isRecording = dev.settings && String(dev.settings.record_path) === 'true';
+            const activeSessionId = dev.settings ? dev.settings.current_session_id : null;
+            
+            const btn = document.getElementById('toggle-record-btn');
+            btn.innerHTML = isRecording ? '<i class="fas fa-stop"></i> Stop Recording' : '<i class="fas fa-play"></i> Start Recording';
+            btn.className = isRecording ? 'btn btn-sm btn-danger w-100' : 'btn btn-sm btn-outline-primary w-100';
+            btn.onclick = () => toggleRecording(id, !isRecording);
+
+            renderHistoryList(dev.history);
+
+            if (isRecording && activeSessionId && dev.history && dev.history[activeSessionId]) {
+                if (!currentDrawnSessionId) {
+                    currentDrawnSessionId = activeSessionId;
+                    const records = Object.values(dev.history[activeSessionId])
+                                          .filter(r => isValidLocation(r.lat, r.lng))
+                                          .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+                    drawSessionPath(records, activeSessionId, false);
+                    return;
+                }
+            }
+
+            if (currentDrawnSessionId && dev.history && dev.history[currentDrawnSessionId]) {
+                const records = Object.values(dev.history[currentDrawnSessionId])
+                                      .filter(r => isValidLocation(r.lat, r.lng))
+                                      .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+                drawSessionPath(records, currentDrawnSessionId, true);
+            }
+        }
+
+        function renderHistoryList(history) {
+            const container = document.getElementById('history-list');
+            container.innerHTML = '';
+            if (!history) {
+                container.innerHTML = '<div class="text-center p-4 text-muted" style="font-size:12px">No records found.</div>';
+                return;
+            }
+
+            const sessionIds = Object.keys(history).reverse();
+
+            if (sessionIds.length === 0) {
+                container.innerHTML = '<div class="text-center p-4 text-muted" style="font-size:12px">No session records found.</div>';
+                return;
+            }
+
+            sessionIds.forEach(sessionId => {
+                const sessionData = history[sessionId];
+                const records = Object.values(sessionData)
+                                      .filter(r => isValidLocation(r.lat, r.lng))
+                                      .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+                if(records.length === 0) return;
+                
+                const startTimeMs = new Date(records[0].timestamp).getTime();
+                const endTimeMs = new Date(records[records.length-1].timestamp).getTime();
+                const startTime = new Date(startTimeMs).toLocaleString('en-US');
+                const endTime = new Date(endTimeMs).toLocaleTimeString('en-US');
+                
+                let totalDistance = 0;
+                for (let i = 0; i < records.length - 1; i++) {
+                    const p1 = L.latLng(records[i].lat, records[i].lng);
+                    const p2 = L.latLng(records[i+1].lat, records[i+1].lng);
+                    totalDistance += p1.distanceTo(p2);
+                }
+                
+                const distanceKm = totalDistance / 1000;
+                const distanceStr = totalDistance < 1000 ? `${Math.round(totalDistance)} m` : `${distanceKm.toFixed(2)} km`;
+                
+                const durationMs = endTimeMs - startTimeMs;
+                const durationHours = durationMs / (1000 * 60 * 60);
+                
+                let avgSpeed = 0;
+                if (durationHours > 0) {
+                    avgSpeed = distanceKm / durationHours;
+                }
+                
+                let durationStr = "0 s";
+                if (durationMs > 0) {
+                    const totalSec = Math.floor(durationMs / 1000);
+                    const h = Math.floor(totalSec / 3600);
+                    const m = Math.floor((totalSec % 3600) / 60);
+                    const s = totalSec % 60;
+                    let parts = [];
+                    if (h > 0) parts.push(`${h} h`);
+                    if (m > 0 || h > 0) parts.push(`${m} m`);
+                    parts.push(`${s} s`);
+                    durationStr = parts.join(' ');
+                }
+                
+                const div = document.createElement('div');
+                div.className = 'device-card mb-2';
+                if (currentDrawnSessionId === sessionId) {
+                    div.classList.add('border', 'border-primary');
+                }
+                div.style.padding = '10px';
+                div.style.cursor = 'pointer';
+                div.onclick = () => {
+                    document.querySelectorAll('#history-list .device-card').forEach(el => el.classList.remove('border', 'border-primary'));
+                    div.classList.add('border', 'border-primary');
+                    drawSessionPath(records, sessionId, false);
+                };
+                
+                div.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div style="font-size:12px; font-weight:600; color:#333;">
+                            <i class="fas fa-route text-primary me-1"></i> Start: ${startTime}
+                        </div>
+                        <span class="badge bg-secondary" style="font-size:10px">${records.length} Points</span>
+                    </div>
+                    <div style="font-size:11px; color:#666; margin-left: 20px; margin-bottom: 4px;">
+                        End: ${endTime}
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top" style="font-size:11px; color:#444;">
+                        <div title="Total Distance"><i class="fas fa-ruler text-secondary"></i> ${distanceStr}</div>
+                        <div title="Duration"><i class="fas fa-clock text-secondary"></i> ${durationStr}</div>
+                        <div title="Average Speed"><i class="fas fa-tachometer-alt text-secondary"></i> ${avgSpeed.toFixed(1)} km/h</div>
+                    </div>
+                `;
+                
+                container.appendChild(div);
+            });
+        }
+
+        window.drawSessionPath = function(records, sessionId, isUpdate = false) {
+            currentDrawnSessionId = sessionId;
+            if (currentPolyline) map.removeLayer(currentPolyline);
+            if (startMarker) map.removeLayer(startMarker);
+            if (endMarker) map.removeLayer(endMarker);
+            
+            if (!records || records.length === 0) return;
+
+            const latlngs = records.map(r => [r.lat, r.lng]);
+            
+            currentPolyline = L.polyline(latlngs, {color: '#0d6efd', weight: 4, opacity: 0.8}).addTo(map);
+            
+            const startIcon = L.divIcon({
+                html: '<div style="font-size: 24px; color: #198754; text-shadow: 1px 1px 2px white;"><i class="fas fa-flag"></i></div>',
+                className: '',
+                iconSize: [24, 24],
+                iconAnchor: [6, 24]
+            });
+            
+            const endIcon = L.divIcon({
+                html: '<div style="font-size: 24px; color: #dc3545; text-shadow: 1px 1px 2px white;"><i class="fas fa-flag-checkered"></i></div>',
+                className: '',
+                iconSize: [24, 24],
+                iconAnchor: [6, 24]
+            });
+
+            startMarker = L.marker(latlngs[0], {icon: startIcon}).addTo(map)
+                .bindPopup(`<div style="text-align:center; font-family:'Inter',sans-serif;"><b>Start</b><br><small>${new Date(records[0].timestamp).toLocaleString('en-US')}</small></div>`);
+                
+            if (latlngs.length > 1) {
+                endMarker = L.marker(latlngs[latlngs.length - 1], {icon: endIcon}).addTo(map)
+                    .bindPopup(`<div style="text-align:center; font-family:'Inter',sans-serif;"><b>End / Last Position</b><br><small>${new Date(records[records.length - 1].timestamp).toLocaleString('en-US')}</small></div>`);
+            }
+            
+            if (!isUpdate) {
+                if (latlngs.length > 1) {
+                    map.fitBounds(currentPolyline.getBounds(), { padding: [30, 30] });
+                } else {
+                    map.setView(latlngs[0], 17);
+                }
+            }
+        };
+
+        window.closeHistory = function() {
+            document.getElementById('view-history').style.display = 'none';
+            document.getElementById('view-devices').style.display = 'flex';
+            currentHistoryDevice = null;
+            currentDrawnSessionId = null;
+            
+            if (currentPolyline) { map.removeLayer(currentPolyline); currentPolyline = null; }
+            if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
+            if (endMarker) { map.removeLayer(endMarker); endMarker = null; }
+        };
+
+        window.toggleRecording = function(devEui, enabled) {
+            let updates = { record_path: enabled };
+            
+            if (enabled) {
+                updates.current_session_id = 'session_' + Date.now();
+                currentDrawnSessionId = null;
+            }
+            
+            database.ref(`devices/${devEui}/settings`).update(updates).then(() => {
+                if (document.getElementById('view-history').style.display === 'flex') {
+                    openHistoryView(devEui);
+                }
+            }).catch(err => {
+                console.error("Firebase update error:", err);
+                alert("Failed to update recording status. Please check your Firebase rules/permissions.");
+            });
+        };
+    </script>
+</body>
+</html>

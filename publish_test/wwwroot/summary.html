@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Istiklal LoRaWAN | System Summary</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Style CSS -->
+    <link rel="stylesheet" href="assets/css/style.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+</head>
+<body>
+    <!-- Top Navigation Menu -->
+    <nav>
+        <a href="index.html" class="navbar-brand">Istiklal LoRaWAN</a>
+        <div class="nav-links">
+            <a href="index.html"><i class="fas fa-home"></i> Home</a>
+            <a href="summary.html" class="active"><i class="fas fa-chart-line"></i> System Summary</a>
+            <a href="temp-hum.html"><i class="fas fa-thermometer-half"></i> Temp & Hum</a>
+            <a href="gps.html"><i class="fas fa-map-marker-alt"></i> GPS Tracking</a>
+            <a href="architecture.html"><i class="fas fa-network-wired"></i> Architecture</a>
+        </div>
+    </nav>
+
+    <main class="main-container">
+        <!-- Page Header -->
+        <header style="margin-bottom: 30px;">
+            <h1 style="font-size: 28px; font-weight: 800; color: var(--primary);">System General Summary</h1>
+            <p style="color: var(--text-muted); font-size: 15px;">Real-time status and environmental data of all LoRaWAN devices across the campus.</p>
+        </header>
+
+        <!-- Stats Grid -->
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Devices</div>
+                <div class="stat-value" id="total-devices">0</div>
+                <div style="font-size: 11px; color: var(--success); font-weight: 600;"><i class="fas fa-database"></i> Registered Units</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Active Connection</div>
+                <div class="stat-value" id="online-devices">0</div>
+                <div style="font-size: 11px; color: var(--secondary); font-weight: 600;"><i class="fas fa-signal"></i> Last 1 Hour</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Outdoor Temp</div>
+                <div class="stat-value" id="weather-temp">--°C</div>
+                <div class="stat-label" id="weather-desc" style="font-size: 11px; text-transform: uppercase;">Loading...</div>
+            </div>
+        </section>
+
+        <!-- Device List -->
+        <section class="card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 20px; border-bottom: 1px solid var(--border); background: #fcfcfc; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="font-size: 16px; font-weight: 700; color: var(--primary); margin: 0;"><i class="fas fa-list-ul me-2"></i> Device Tracking List</h2>
+                <span class="badge bg-light text-dark border" id="update-timer">Live</span>
+            </div>
+            
+            <div id="device-list">
+                <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                    <p>Loading data...</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <style>
+        .device-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 25px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+        .device-item:hover { background-color: #f8f9fa; }
+        .device-item:last-child { border-bottom: none; }
+        
+        .status-pill {
+            padding: 4px 12px;
+            border-radius: 50px;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pill-online { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .pill-offline { background-color: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .dot-online { background-color: #4caf50; box-shadow: 0 0 8px #4caf50; }
+        .dot-offline { background-color: #f44336; }
+    </style>
+
+    <!-- Firebase Config & Logic -->
+    <script src="assets/js/firebase-config.js"></script>
+    <script>
+        // Get devices from Firebase
+        database.ref('devices').on('value', (snapshot) => {
+            const devices = snapshot.val() || {};
+            const deviceList = document.getElementById('device-list');
+            deviceList.innerHTML = '';
+
+            let totalCount = 0;
+            let onlineCount = 0;
+            const now = new Date();
+
+            Object.keys(devices).forEach(devEui => {
+                totalCount++;
+                const device = devices[devEui];
+                const info = device.info || {};
+                const lastSeen = new Date(info.last_seen);
+                
+                // Active if seen in the last 1 hour
+                const isOnline = (now - lastSeen) < (3600 * 1000);
+                if (isOnline) onlineCount++;
+
+                const item = document.createElement('div');
+                item.className = 'device-item';
+                item.innerHTML = `
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="width: 40px; height: 40px; border-radius: 10px; background: #f0f2f5; display: flex; align-items: center; justify-content: center; color: var(--primary);">
+                            <i class="fas ${info.type === 'gps' ? 'fa-satellite' : 'fa-thermometer-half'}"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight: 700; color: #333; font-size: 15px;">${info.name || devEui}</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">${devEui} • ${info.type === 'gps' ? 'T1000B GPS' : 'LHT52 Temp/Humidity'}</div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="status-pill ${isOnline ? 'pill-online' : 'pill-offline'}">
+                            <span class="dot ${isOnline ? 'dot-online' : 'dot-offline'}"></span>
+                            ${isOnline ? 'ACTIVE' : 'INACTIVE'}
+                        </span>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 5px;">
+                            <i class="far fa-clock me-1"></i>${info.last_seen ? new Date(info.last_seen).toLocaleString('en-US') : '--'}
+                        </div>
+                    </div>
+                `;
+                deviceList.appendChild(item);
+            });
+
+            document.getElementById('total-devices').innerText = totalCount;
+            document.getElementById('online-devices').innerText = onlineCount;
+        });
+
+        // Get weather from Firebase
+        database.ref('weather').on('value', (snapshot) => {
+            const weather = snapshot.val();
+            if (weather && weather.main) {
+                document.getElementById('weather-temp').innerText = `${Math.round(weather.main.temp)}°C`;
+                document.getElementById('weather-desc').innerText = weather.weather[0].description.toUpperCase();
+            }
+        });
+    </script>
+</body>
+</html>

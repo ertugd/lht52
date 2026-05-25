@@ -16,6 +16,17 @@ if (File.Exists(secretPath))
 }
 
 // Add services to the container.
+Console.WriteLine($"[DEBUG] Current Directory: {Directory.GetCurrentDirectory()}");
+Console.WriteLine($"[DEBUG] Content Root Path: {builder.Environment.ContentRootPath}");
+Console.WriteLine($"[DEBUG] appsettings.json exists in root: {File.Exists(Path.Combine(builder.Environment.ContentRootPath, "appsettings.json"))}");
+Console.WriteLine($"[DEBUG] /etc/secrets/appsettings.json exists: {File.Exists("/etc/secrets/appsettings.json")}");
+Console.WriteLine($"[DEBUG] Firebase:DatabaseUrl: {builder.Configuration["Firebase:DatabaseUrl"]}");
+Console.WriteLine($"[DEBUG] Firebase:AuthSecret is null or empty: {string.IsNullOrEmpty(builder.Configuration["Firebase:AuthSecret"])}");
+if (!string.IsNullOrEmpty(builder.Configuration["Firebase:AuthSecret"]))
+{
+    Console.WriteLine($"[DEBUG] Firebase:AuthSecret starts with: {builder.Configuration["Firebase:AuthSecret"].Substring(0, Math.Min(5, builder.Configuration["Firebase:AuthSecret"].Length))}...");
+}
+
 builder.Services.AddControllers()
     .AddNewtonsoftJson(options =>
     {
