@@ -80,6 +80,7 @@ app.UseRouting();
 app.UseAuthorization();
 
 app.MapGet("/ping", () => Results.Ok("pong"));
+app.MapGet("/api/healt_check", () => new string[] { "Success" });
 app.MapControllers();
 
 app.Run();
