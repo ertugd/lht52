@@ -5,15 +5,14 @@ using System.IO;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load Render secrets if available, otherwise fall back to appsettings.json
+// Load default appsettings.json
+builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+
+// Load Render secrets if available to override default settings
 var secretPath = "/etc/secrets/appsettings.json";
 if (File.Exists(secretPath))
 {
-    builder.Configuration.AddJsonFile(secretPath, optional: false, reloadOnChange: true);
-}
-else
-{
-    builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+    builder.Configuration.AddJsonFile(secretPath, optional: true, reloadOnChange: true);
 }
 
 // Add services to the container.
@@ -52,6 +51,8 @@ app.UseStaticFiles();
 
 app.UseRouting();
 app.UseAuthorization();
+
+app.MapGet("/ping", () => Results.Ok("pong"));
 app.MapControllers();
 
 app.Run();
