@@ -30,13 +30,13 @@ namespace IstiklalLorawanAPI.Services
         {
             // Veritabanı internet adresini ayarlardan al, yoksa varsayılanı kullan
             string dbUrl = configuration["Firebase:DatabaseUrl"] ?? "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app";
-            // Veritabanına güvenli giriş yapmak için gereken veritabanı şifresi (Auth Secret)
-            string authSecret = configuration["Firebase:AuthSecret"];
+            // Veritabanına güvenli giriş yapmak için gereken veritabanı şifresi (Auth Secret / Database Secret)
+            string authSecret = configuration["Firebase:AuthSecret"] ?? configuration["Firebase:DatabaseSecret"];
             
             // Eğer şifre verilmemişse programı durdur ve hata ver
             if (string.IsNullOrEmpty(authSecret))
             {
-                throw new ArgumentException("Firebase:AuthSecret ayarı eksik. Lütfen Database Secret (Veritabanı Şifresi) girin.");
+                throw new ArgumentException("Firebase:AuthSecret veya Firebase:DatabaseSecret ayarı eksik. Lütfen Database Secret (Veritabanı Şifresi) girin.");
             }
 
             // Şifreyi kullanarak Firebase sunucusuna bağlan
