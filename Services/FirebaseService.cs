@@ -1,13 +1,14 @@
 using Firebase.Database;
 using Firebase.Database.Query;
-using istiklal_karacasu_lorawan.Models;
 using Microsoft.Extensions.Configuration;
+using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+using System.IO;
+// Google.Apis.Auth artık kullanılmıyor, yerine Secret (Gizli Anahtar) kullanıyoruz.
 
-namespace istiklal_karacasu_lorawan.Services
+namespace IstiklalLorawanAPI.Services
 {
     // Bu arayüz (interface), Firebase servisimizin yapabileceği işlerin (fonksiyonların) bir sözleşmesidir.
     public interface IFirebaseService
@@ -15,44 +16,56 @@ namespace istiklal_karacasu_lorawan.Services
         Task SaveTempHumAsync(string devEui, string name, double? tempInner, double? tempOuter, double? humidity, double? battery, string timestamp);
         Task SaveGpsAsync(string devEui, string name, double lat, double lng, double? battery, string timestamp);
         Task SetRecordingAsync(string devEui, bool enabled);
+        Task SaveWeatherAsync(object weatherData);
     }
 
+    // Gerçek veritabanı işlemlerini yaptığımız asıl sınıf
     public class FirebaseService : IFirebaseService
     {
+        // Firebase'e bağlanmamızı sağlayan istemci (client)
         private readonly FirebaseClient _client;
-        public string BaseUrl { get; }
-        public string Secret { get; }
 
-        public FirebaseService(IConfiguration config)
+        // Sınıf başlatıldığında ayarları yükleyen ve veritabanına bağlanan kısım
+        public FirebaseService(IConfiguration configuration)
         {
-            BaseUrl = config["Firebase:DatabaseUrl"] ?? "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app";
-            Secret = config["Firebase:DatabaseSecret"] ?? config["Firebase:AuthSecret"];
-
-            if (string.IsNullOrEmpty(Secret))
+            // Veritabanı internet adresini ayarlardan al, yoksa varsayılanı kullan
+            string dbUrl = configuration["Firebase:DatabaseUrl"] ?? "https://istiklal-karacasu-default-rtdb.europe-west1.firebasedatabase.app";
+            // Veritabanına güvenli giriş yapmak için gereken veritabanı şifresi (Auth Secret)
+            string authSecret = configuration["Firebase:AuthSecret"];
+            
+            // Eğer şifre verilmemişse programı durdur ve hata ver
+            if (string.IsNullOrEmpty(authSecret))
             {
-                throw new ArgumentException("Firebase:DatabaseSecret veya Firebase:AuthSecret ayarı eksik.");
+                throw new ArgumentException("Firebase:AuthSecret ayarı eksik. Lütfen Database Secret (Veritabanı Şifresi) girin.");
             }
 
+            // Şifreyi kullanarak Firebase sunucusuna bağlan
             _client = new FirebaseClient(
-                BaseUrl,
-                new FirebaseOptions { AuthTokenAsyncFactory = () => Task.FromResult(Secret) }
-            );
+                dbUrl,
+                new FirebaseOptions
+                {
+                    AuthTokenAsyncFactory = () => Task.FromResult(authSecret)
+                });
         }
 
-        // --- REFERANS PROJEDEN GELEN METOTLAR (YENİ YAPI) ---
-
+        // --- ISI VE NEM VERİSİNİ KAYDETME ---
         public async Task SaveTempHumAsync(string devEui, string name, double? tempInner, double? tempOuter, double? humidity, double? battery, string timestamp)
         {
+            // Veritabanında o cihaza ait klasörü (devices/cihaz_numarasi) bul
             var deviceRef = _client.Child("devices").Child(devEui);
+
+            // Cihazın genel bilgilerini (isim, tip, son görülme saati vb.) güncelle
             var info = new
             {
                 name = name,
-                type = "temp-hum",
+                type = "temp-hum", // Isı ve Nem sensörü
                 last_seen = timestamp,
-                battery = battery ?? 100
+                battery = battery ?? 100 // Batarya bilgisi yoksa %100 kabul et
             };
+            // 'info' klasörünün içine bu bilgileri yama yap (sadece değişenleri güncelle)
             await deviceRef.Child("info").PatchAsync(info);
 
+            // En son ölçülen değerleri paketle
             var data = new
             {
                 temp_inner = tempInner,
@@ -60,118 +73,68 @@ namespace istiklal_karacasu_lorawan.Services
                 humidity = humidity,
                 timestamp = timestamp
             };
+            // Bu güncel ölçümleri 'latest' klasörüne yaz (Eski değeri tamamen ezer, böylece hep en son veriyi gösterir)
             await deviceRef.Child("latest").PutAsync(data);
+
+            // Aynı ölçümleri bir de 'history' (geçmiş) listesine yeni bir kayıt olarak ekle (PostAsync alta yeni satır ekler)
             await deviceRef.Child("history").PostAsync(data);
         }
 
+        // --- GPS (KONUM) VERİSİNİ KAYDETME ---
         public async Task SaveGpsAsync(string devEui, string name, double lat, double lng, double? battery, string timestamp)
         {
+            // Cihaz klasörünü bul
             var deviceRef = _client.Child("devices").Child(devEui);
+
+            // Cihaz bilgilerini güncelle
             var info = new
             {
                 name = name,
-                type = "gps",
+                type = "gps", // GPS (Konum) takip cihazı
                 last_seen = timestamp,
                 battery = battery ?? 100
             };
             await deviceRef.Child("info").PatchAsync(info);
 
+            // En son konum bilgisini 'latest' klasörüne yaz (Haritada anında o konuma zıplasın diye)
             var data = new
             {
-                lat = lat,
-                lng = lng,
+                lat = lat, // Enlem
+                lng = lng, // Boylam
                 timestamp = timestamp
             };
             await deviceRef.Child("latest").PutAsync(data);
 
+            // Acaba kullanıcı web sitesinden "Rotayı Kaydetmeye Başla" dedi mi diye ayarlara bak
             var settings = await deviceRef.Child("settings").OnceSingleAsync<IDictionary<string, object>>();
+            
+            // Eğer ayarlar varsa ve 'record_path' (yolu kaydet) özelliği True (Açık) ise
             if (settings != null && settings.ContainsKey("record_path") && Convert.ToBoolean(settings["record_path"]))
             {
+                // Geçmiş kayıtları "oturum" (session) adı verilen parçalara bölerek kaydet
+                // Oturum kimliği (session_id) verilmişse onu kullan, yoksa "default_session" klasörüne ekle
                 string sessionId = settings.ContainsKey("current_session_id") ? settings["current_session_id"].ToString() : "default_session";
                 await deviceRef.Child("history").Child(sessionId).PostAsync(data);
             }
         }
 
+        // --- GPS KAYDINI AÇIP KAPATMA ---
         public async Task SetRecordingAsync(string devEui, bool enabled)
         {
+            // Web sitesinden gelen komuta göre 'record_path' ayarını True veya False yap
             await _client.Child("devices").Child(devEui).Child("settings").PatchAsync(new
             {
                 record_path = enabled
             });
         }
 
-        // --- MEVCUT METOTLAR (ESKİ PANEL UYUMLULUĞU İÇİN) ---
-
-        public async Task<List<TelemetryEntry>> GetEntriesAsync(DateTime from, DateTime to)
+        // --- DIŞ ORTAM HAVA DURUMUNU KAYDETME ---
+        public async Task SaveWeatherAsync(object weatherData)
         {
-            var data = await _client
-                .Child("telemetry")
-                .OnceAsync<TelemetryEntry>();
-
-            var filtered = data
-                .Select(d => d.Object)
-                .Where(e => e != null && e.Time >= from && e.Time <= to)
-                .OrderBy(e => e.Time)
-                .ToList();
-
-            return filtered;
-        }
-
-        public async Task AddEntryTelemetryAsync(TelemetryEntry entry)
-        {
-            if (entry == null)
-                throw new ArgumentNullException(nameof(entry));
-
-            await _client
-                .Child("telemetry")
-                .PostAsync(entry);
-        }
-
-        public async Task<GPSModel> GetGPSAsync(string id)
-        {
-            try
-            {
-                return await _client.Child("locations").Child(id).OnceSingleAsync<GPSModel>();
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        public async Task AddEntryGPSAsync(GPSModel entry, string id)
-        {
-            await _client.Child("locations").Child(id).PutAsync(entry);
-
-            if (entry.IsTracking)
-            {
-                await _client.Child("location_history").Child(id).PostAsync(entry);
-            }
-        }
-
-        public async Task UpdateTrackingAsync(string id, bool status, string sessionId)
-        {
-            if (string.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
-
-            await _client
-                .Child("locations")
-                .Child(id)
-                .Child("is_tracking")
-                .PutAsync(status);
-
-            var locationNode = _client.Child("locations").Child(id);
-
-            if (status && !string.IsNullOrEmpty(sessionId))
-            {
-                string jsonString = "\"" + sessionId + "\"";
-                await locationNode.Child("session_id").PutAsync(jsonString);
-                await locationNode.Child("speed").PutAsync(0);
-            }
-            else
-            {
-                await locationNode.Child("session_id").DeleteAsync();
-                await locationNode.Child("speed").PutAsync(0);
-            }
+            // En son hava durumunu ana dizine yazdır
+            await _client.Child("weather").PutAsync(weatherData);
+            // Tarihsel analiz için geçmişe de bir kopyasını at
+            await _client.Child("weather_history").PostAsync(weatherData);
         }
     }
 }

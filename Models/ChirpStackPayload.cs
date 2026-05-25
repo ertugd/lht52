@@ -1,7 +1,7 @@
 using Newtonsoft.Json;
 using System.Collections.Generic;
 
-namespace istiklal_karacasu_lorawan.Models
+namespace IstiklalLorawanAPI.Models
 {
     public class ChirpStackPayload
     {

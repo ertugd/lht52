@@ -1,0 +1,56 @@
+{
+    "rules": {
+        // API (Database Secret) her zaman yazabilir, başkaları yazamaz.
+        ".write": false,
+        // Cihaz verileri
+        "devices": {
+            ".read": true, // Web arayüzünün okuyabilmesi için
+            "$devEui": {
+                "history": {
+                    // Grafikler ve geçmiş sorguları için zaman damgasına göre indeks
+                    ".indexOn": [
+                        "timestamp"
+                    ]
+                },
+                // Cihaz ayarları düğümü
+                "settings": {
+                    // Cihazın GPS kaydının başlatılıp durdurulmasını tutan alan
+                    "record_path": {
+                        // Sadece bu alana web arayüzünden (JavaScript ile) doğrudan veri yazılabilmesi için ".write": true diyoruz.
+                        // Diğer cihaz verilerine müdahale edilmesini engeller.
+                        ".write": true,
+                        // Ekstra güvenlik: Gönderilen verinin "true" veya "false" (boolean) olmasını zorunlu kılıyoruz, metin veya zararlı veri girilemez.
+                        ".validate": "newData.isBoolean()"
+                    },
+                    // GPS kaydı başlatıldığında o rotayı gruplamak için atanan oturum kimliği
+                    "current_session_id": {
+                        // Web arayüzü "Kaydı Başlat" dediğinde oturum kimliğini de buraya yazabilsin diye buna da yazma izni veriyoruz.
+                        ".write": true,
+                        // Gönderilen oturum kimliğinin bir metin (string) olması gerektiğini belirtiyoruz.
+                        ".validate": "newData.isString()"
+                    }
+                }
+            }
+        },
+        // Hava durumu verileri
+        "weather": {
+            ".read": true,
+            ".write": false
+        },
+        // Eğer hala telemetry kullanıyorsanız kalabilir
+        "telemetry": {
+            ".read": true,
+            ".indexOn": [
+                "Time"
+            ]
+        },
+        "location_history": {
+            ".read": true,
+            "$deviceId": {
+                ".indexOn": [
+                    "session_id"
+                ]
+            }
+        }
+    }
+}

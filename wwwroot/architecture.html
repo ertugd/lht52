@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Istiklal LoRaWAN | Architecture</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Web site style config -->
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <!-- Navigation Menu -->
+    <nav>
+        <a href="index.html" class="navbar-brand">Istiklal LoRaWAN</a>
+        <div class="nav-links">
+            <a href="index.html"><i class="fas fa-home"></i> Home</a>
+            <a href="summary.html"><i class="fas fa-chart-line"></i> System Summary</a>
+            <a href="temp-hum.html"><i class="fas fa-thermometer-half"></i> Temp & Hum</a>
+            <a href="gps.html"><i class="fas fa-map-marker-alt"></i> GPS Tracking</a>
+            <a href="architecture.html" class="active"><i class="fas fa-network-wired"></i> Architecture</a>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-container">
+        <!-- Page Title -->
+        <header style="margin-bottom: 2rem;">
+            <h1 style="font-size: 2rem; font-weight: 800; color: var(--primary);">System Architecture</h1>
+            <p style="color: var(--text-muted);">Data flow diagram from LoRaWAN end devices to the user interface.</p>
+        </header>
+
+        <!-- Architecture Flow Card -->
+        <section class="card" style="text-align: center; padding: 4rem;">
+            <div class="architecture-flow" style="display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 2rem;">
+                
+                <!-- Step 1: End Devices -->
+                <div class="flow-item">
+                    <div style="font-size: 40px; margin-bottom: 1rem;">📡</div>
+                    <h3>End Devices</h3>
+                    <p style="font-size: 0.875rem; color: var(--text-muted);">LHT52 (Temp/Hum) & T1000B (GPS)</p>
+                </div>
+                
+                <i class="fas fa-arrow-right" style="color: #ccc;"></i>
+                
+                <!-- Step 2: Gateway -->
+                <div class="flow-item">
+                    <div style="font-size: 40px; margin-bottom: 1rem;">🗼</div>
+                    <h3>Gateway</h3>
+                    <p style="font-size: 0.875rem; color: var(--text-muted);">LoRaWAN Gateway</p>
+                </div>
+                
+                <i class="fas fa-arrow-right" style="color: #ccc;"></i>
+                
+                <!-- Step 3: ASP.NET Core API -->
+                <div class="flow-item">
+                    <div style="font-size: 40px; margin-bottom: 1rem;">⚙️</div>
+                    <h3>ASP.NET Core API</h3>
+                    <p style="font-size: 0.875rem; color: var(--text-muted);">Data Processing & Storage</p>
+                </div>
+                
+                <i class="fas fa-arrow-right" style="color: #ccc;"></i>
+                
+                <!-- Step 4: Firebase -->
+                <div class="flow-item">
+                    <div style="font-size: 40px; margin-bottom: 1rem;">🔥</div>
+                    <h3>Firebase</h3>
+                    <p style="font-size: 0.875rem; color: var(--text-muted);">Realtime Database</p>
+                </div>
+                
+                <i class="fas fa-arrow-right" style="color: #ccc;"></i>
+                
+                <!-- Step 5: Dashboard -->
+                <div class="flow-item">
+                    <div style="font-size: 40px; margin-bottom: 1rem;">💻</div>
+                    <h3>Dashboard</h3>
+                    <p style="font-size: 0.875rem; color: var(--text-muted);">Web Application</p>
+                </div>
+            </div>
+
+            <!-- Features details -->
+            <div style="margin-top: 4rem; text-align: left;">
+                <h3 style="color: var(--primary);">System Features</h3>
+                <ul style="color: var(--text-muted); margin-top: 1rem; line-height: 1.8;">
+                    <li><strong>Low Power Consumption:</strong> Thanks to LoRaWAN wireless technology, the battery life of devices lasts for months or even years.</li>
+                    <li><strong>Real-time Data:</strong> Thanks to the Firebase system, as soon as a sensor transmits data, it is displayed on the dashboard in real-time without reloading the page.</li>
+                    <li><strong>Independent Frontend:</strong> This web site runs completely independently of the backend server (as a pure static site).</li>
+                    <li><strong>Secure Communication:</strong> Data incoming from sensors to the server is validated and accepted using a secure API Key.</li>
+                </ul>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
