@@ -24,6 +24,7 @@ namespace IstiklalLorawanAPI.Services
     {
         // Firebase'e bağlanmamızı sağlayan istemci (client)
         private readonly FirebaseClient _client;
+        private readonly bool _enableWeatherHistory;
 
         // Sınıf başlatıldığında ayarları yükleyen ve veritabanına bağlanan kısım
         public FirebaseService(IConfiguration configuration)
@@ -33,6 +34,9 @@ namespace IstiklalLorawanAPI.Services
             // Veritabanına güvenli giriş yapmak için gereken veritabanı şifresi (Auth Secret / Database Secret)
             string authSecret = configuration["Firebase:AuthSecret"] ?? configuration["Firebase:DatabaseSecret"];
             
+            // Hava durumu geçmişi kaydetme özelliğinin aktif olup olmadığını kontrol et
+            _enableWeatherHistory = configuration.GetValue<bool>("Firebase:EnableWeatherHistory", true);
+
             // Eğer şifre verilmemişse programı durdur ve hata ver
             if (string.IsNullOrEmpty(authSecret))
             {
@@ -133,8 +137,12 @@ namespace IstiklalLorawanAPI.Services
         {
             // En son hava durumunu ana dizine yazdır
             await _client.Child("weather").PutAsync(weatherData);
-            // Tarihsel analiz için geçmişe de bir kopyasını at
-            await _client.Child("weather_history").PostAsync(weatherData);
+            
+            // Tarihsel analiz için geçmişe de bir kopyasını at (yapılandırmaya göre kontrol et)
+            if (_enableWeatherHistory)
+            {
+                await _client.Child("weather_history").PostAsync(weatherData);
+            }
         }
     }
 }
