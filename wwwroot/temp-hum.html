@@ -125,32 +125,51 @@
         // --- OUTDOOR WEATHER (Open-Meteo API) ---
         async function loadWeatherData() {
             try {
-                const lat = 37.5753; 
-                const lon = 36.9228;
+                // Karacasu, Aydın koordinatları
+                const lat = 37.7178; 
+                const lon = 28.8596;
                 const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&hourly=temperature_2m&timezone=Europe%2FIstanbul`;
 
                 const response = await fetch(apiUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`API returned status ${response.status}`);
+                }
+                
                 const data = await response.json();
+                
+                if (!data || !data.current) {
+                    throw new Error('API response missing current weather data');
+                }
+                
                 const current = data.current;
 
                 const now = new Date();
                 document.getElementById('dateInfo').textContent = now.toLocaleDateString('en-US', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
                 document.getElementById('weatherSubtitle').textContent = getWmoDescription(current.weather_code);
-                document.getElementById('mainTemp').textContent = current.temperature_2m.toFixed(1) + '°C';
-                document.getElementById('mainHumidity').textContent = '%' + current.relative_humidity_2m;
-                document.getElementById('mainWind').textContent = current.wind_speed_10m.toFixed(0) + ' km/h';
+                document.getElementById('mainTemp').textContent = (current.temperature_2m != null ? current.temperature_2m.toFixed(1) : '--') + '°C';
+                document.getElementById('mainHumidity').textContent = '%' + (current.relative_humidity_2m != null ? current.relative_humidity_2m : '--');
+                document.getElementById('mainWind').textContent = (current.wind_speed_10m != null ? current.wind_speed_10m.toFixed(0) : '--') + ' km/h';
 
-                const currentHour = new Date().getHours();
-                const timeIndex = data.hourly.time.findIndex(t => new Date(t).getHours() === currentHour);
-                const start = timeIndex !== -1 ? timeIndex : 0;
-                
-                const chartData = data.hourly.temperature_2m.slice(start, start + 24);
-                const chartLabels = data.hourly.time.slice(start, start + 24).map(t => new Date(t).getHours() + ":00");
-                
-                drawHourlyChart(chartLabels, chartData);
+                if (data.hourly && data.hourly.time && data.hourly.temperature_2m) {
+                    const currentHour = new Date().getHours();
+                    const timeIndex = data.hourly.time.findIndex(t => new Date(t).getHours() === currentHour);
+                    const start = timeIndex !== -1 ? timeIndex : 0;
+                    
+                    const chartData = data.hourly.temperature_2m.slice(start, start + 24);
+                    const chartLabels = data.hourly.time.slice(start, start + 24).map(t => new Date(t).getHours() + ":00");
+                    
+                    drawHourlyChart(chartLabels, chartData);
+                }
             } catch (error) { 
-                console.error('Failed to load weather data:', error); 
+                console.error('Failed to load weather data:', error);
+                // Show error state instead of keeping "Loading..." forever
+                document.getElementById('dateInfo').textContent = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+                document.getElementById('weatherSubtitle').textContent = 'Could not load weather data';
+                document.getElementById('mainTemp').textContent = '--°C';
+                document.getElementById('mainHumidity').textContent = '%--';
+                document.getElementById('mainWind').textContent = '-- km/h';
             }
         }
 

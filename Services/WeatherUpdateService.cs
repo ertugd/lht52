@@ -30,7 +30,7 @@ namespace IstiklalLorawanAPI.Services
             _httpClientFactory = httpClientFactory;
             _logger = logger;
             _apiKey = configuration["WEATHER_API_KEY"] ?? "d5f0325a9dfb9517d0af48e4ca027a18";
-            _city = configuration["CITY"] ?? "Kahramanmaras,TR";
+            _city = configuration["CITY"] ?? "Karacasu,TR";
             _intervalMinutes = configuration.GetValue<int>("WeatherIntervalMinutes", 10);
         }
 
