@@ -37,20 +37,10 @@
             ".read": true,
             ".write": false
         },
-        // Eğer hala telemetry kullanıyorsanız kalabilir
-        "telemetry": {
+        // Hava durumu geçmişi (Okuma herkese açık, yazma sadece API/Secret ile)
+        "weather_history": {
             ".read": true,
-            ".indexOn": [
-                "Time"
-            ]
-        },
-        "location_history": {
-            ".read": true,
-            "$deviceId": {
-                ".indexOn": [
-                    "session_id"
-                ]
-            }
+            ".write": false
         }
     }
 }
