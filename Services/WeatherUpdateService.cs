@@ -18,6 +18,8 @@ namespace IstiklalLorawanAPI.Services
         private readonly ILogger<WeatherUpdateService> _logger;
         private readonly string _apiKey;
         private readonly string _city;
+        private readonly string? _latitude;
+        private readonly string? _longitude;
         private readonly int _intervalMinutes;
 
         public WeatherUpdateService(
@@ -30,7 +32,9 @@ namespace IstiklalLorawanAPI.Services
             _httpClientFactory = httpClientFactory;
             _logger = logger;
             _apiKey = configuration["WEATHER_API_KEY"] ?? "d5f0325a9dfb9517d0af48e4ca027a18";
-            _city = configuration["CITY"] ?? "Karacasu,TR";
+            _city = configuration["CITY"] ?? "Kahramanmaras,TR";
+            _latitude = configuration["WEATHER_LATITUDE"];
+            _longitude = configuration["WEATHER_LONGITUDE"];
             _intervalMinutes = configuration.GetValue<int>("WeatherIntervalMinutes", 10);
         }
 
@@ -58,7 +62,9 @@ namespace IstiklalLorawanAPI.Services
         private async Task UpdateWeatherAsync()
         {
             var client = _httpClientFactory.CreateClient();
-            var url = $"http://api.openweathermap.org/data/2.5/weather?q={_city}&appid={_apiKey}&units=metric&lang=tr";
+            var url = !string.IsNullOrEmpty(_latitude) && !string.IsNullOrEmpty(_longitude)
+                ? $"http://api.openweathermap.org/data/2.5/weather?lat={_latitude}&lon={_longitude}&appid={_apiKey}&units=metric&lang=tr"
+                : $"http://api.openweathermap.org/data/2.5/weather?q={_city}&appid={_apiKey}&units=metric&lang=tr";
 
             var response = await client.GetAsync(url);
             if (response.IsSuccessStatusCode)
@@ -66,9 +72,36 @@ namespace IstiklalLorawanAPI.Services
                 var content = await response.Content.ReadAsStringAsync();
                 var weatherData = JsonConvert.DeserializeObject<dynamic>(content);
 
+                // Extract exact city name and coordinates
+                string apiCity = weatherData.name != null ? (string)weatherData.name : "";
+                
+                double latVal = 37.517060;
+                double lonVal = 36.991310;
+
+                if (!string.IsNullOrEmpty(_latitude) && double.TryParse(_latitude, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double parsedLat))
+                {
+                    latVal = parsedLat;
+                }
+                else if (weatherData.coord != null && weatherData.coord.lat != null)
+                {
+                    latVal = (double)weatherData.coord.lat;
+                }
+
+                if (!string.IsNullOrEmpty(_longitude) && double.TryParse(_longitude, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double parsedLon))
+                {
+                    lonVal = parsedLon;
+                }
+                else if (weatherData.coord != null && weatherData.coord.lon != null)
+                {
+                    lonVal = (double)weatherData.coord.lon;
+                }
+
                 // Option B: Advanced Data Set
                 var filteredData = new
                 {
+                    city = apiCity,
+                    lat = latVal,
+                    lon = lonVal,
                     main = new
                     {
                         temp = weatherData.main.temp,

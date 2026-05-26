@@ -165,7 +165,8 @@
             const weather = snapshot.val();
             if (weather && weather.main) {
                 document.getElementById('weather-temp').innerText = `${Math.round(weather.main.temp)}°C`;
-                document.getElementById('weather-desc').innerText = weather.weather[0].description.toUpperCase();
+                const city = weather.city || 'Karacasu';
+                document.getElementById('weather-desc').innerText = `${city} - ${weather.weather[0].description}`.toUpperCase();
             }
         });
     </script>

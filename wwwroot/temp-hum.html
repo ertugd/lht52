@@ -47,7 +47,7 @@
                 <div class="weather-module">
                     <div class="mgm-header">
                         <div class="date-info" id="dateInfo">Loading...</div>
-                        <h1 class="city-name">Karacasu</h1>
+                        <h1 class="city-name" id="cityName">Karacasu</h1>
                         <div class="weather-desc" id="weatherSubtitle">Loading weather...</div>
                     </div>
                     <div class="current-stats-row">
@@ -122,36 +122,15 @@
     <!-- Firebase Config & Logic -->
     <script src="assets/js/firebase-config.js"></script>
     <script>
-        // --- OUTDOOR WEATHER (Open-Meteo API) ---
-        async function loadWeatherData() {
+        // --- OUTDOOR WEATHER (Open-Meteo & Firebase) ---
+        async function loadHourlyForecast(lat, lon) {
             try {
-                // Karacasu, Aydın koordinatları
-                const lat = 37.7178; 
-                const lon = 28.8596;
-                const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&hourly=temperature_2m&timezone=Europe%2FIstanbul`;
-
+                const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m&timezone=Europe%2FIstanbul`;
                 const response = await fetch(apiUrl);
-                
                 if (!response.ok) {
                     throw new Error(`API returned status ${response.status}`);
                 }
-                
                 const data = await response.json();
-                
-                if (!data || !data.current) {
-                    throw new Error('API response missing current weather data');
-                }
-                
-                const current = data.current;
-
-                const now = new Date();
-                document.getElementById('dateInfo').textContent = now.toLocaleDateString('en-US', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-
-                document.getElementById('weatherSubtitle').textContent = getWmoDescription(current.weather_code);
-                document.getElementById('mainTemp').textContent = (current.temperature_2m != null ? current.temperature_2m.toFixed(1) : '--') + '°C';
-                document.getElementById('mainHumidity').textContent = '%' + (current.relative_humidity_2m != null ? current.relative_humidity_2m : '--');
-                document.getElementById('mainWind').textContent = (current.wind_speed_10m != null ? current.wind_speed_10m.toFixed(0) : '--') + ' km/h';
-
                 if (data.hourly && data.hourly.time && data.hourly.temperature_2m) {
                     const currentHour = new Date().getHours();
                     const timeIndex = data.hourly.time.findIndex(t => new Date(t).getHours() === currentHour);
@@ -162,16 +141,50 @@
                     
                     drawHourlyChart(chartLabels, chartData);
                 }
-            } catch (error) { 
-                console.error('Failed to load weather data:', error);
-                // Show error state instead of keeping "Loading..." forever
-                document.getElementById('dateInfo').textContent = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-                document.getElementById('weatherSubtitle').textContent = 'Could not load weather data';
-                document.getElementById('mainTemp').textContent = '--°C';
-                document.getElementById('mainHumidity').textContent = '%--';
-                document.getElementById('mainWind').textContent = '-- km/h';
+            } catch (error) {
+                console.error('Failed to load hourly forecast:', error);
             }
         }
+
+        // Firebase weather database listener
+        database.ref('weather').on('value', (snapshot) => {
+            const weather = snapshot.val();
+            if (weather) {
+                // Update City Name
+                const city = weather.city || 'Kahramanmaraş / Karacasu';
+                document.getElementById('cityName').textContent = city;
+                
+                // Update Date/Time
+                const now = new Date();
+                document.getElementById('dateInfo').textContent = now.toLocaleDateString('en-US', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+
+                // Update weather details
+                if (weather.weather && weather.weather[0]) {
+                    document.getElementById('weatherSubtitle').textContent = weather.weather[0].description.toUpperCase();
+                }
+                
+                if (weather.main) {
+                    document.getElementById('mainTemp').textContent = Math.round(weather.main.temp) + '°C';
+                    document.getElementById('mainHumidity').textContent = '%' + weather.main.humidity;
+                }
+                
+                if (weather.wind) {
+                    // OpenWeatherMap returns m/s. Convert to km/h: m/s * 3.6
+                    const speedKmh = Math.round(weather.wind.speed * 3.6);
+                    document.getElementById('mainWind').textContent = speedKmh + ' km/h';
+                }
+
+                // Load hourly forecast using actual coordinates
+                const lat = weather.lat || 37.517060;
+                const lon = weather.lon || 36.991310;
+                loadHourlyForecast(lat, lon);
+            } else {
+                // Fallback / Initial Loading state
+                document.getElementById('cityName').textContent = 'Kahramanmaraş / Karacasu';
+                document.getElementById('dateInfo').textContent = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+                document.getElementById('weatherSubtitle').textContent = 'Loading weather data...';
+            }
+        });
 
         // --- HOURLY OUTDOOR WEATHER CHART ---
         function drawHourlyChart(labels, data) {
@@ -292,8 +305,6 @@
         }
 
         initHistoryCharts();
-        loadWeatherData();
-        setInterval(loadWeatherData, 600000);
     </script>
     <!-- Main Script -->
     <script src="assets/js/main.js"></script>
